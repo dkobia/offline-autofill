@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Apply - Senior Engineer</title>
+  </head>
+  <body>
+    <h1>Application form</h1>
+    <div class="form">
+      <h2>About you</h2>
+      <div class="row">
+        <span class="lbl">Legal first name</span>
+        <input type="text" name="applicant_first" />
+      </div>
+      <div class="row">
+        <span class="lbl">Legal last name</span>
+        <input type="text" name="applicant_last" />
+      </div>
+      <div class="row">
+        <span class="lbl">Preferred pronouns</span>
+        <input type="text" name="pronouns" />
+      </div>
+      <div class="row">
+        <span class="lbl">Where can we reach you?</span>
+        <input type="text" name="reach" placeholder="Email" />
+      </div>
+      <div class="row">
+        <span class="lbl">LinkedIn</span>
+        <input type="text" name="li_url" />
+      </div>
+
+      <h2>Education</h2>
+      <div class="row">
+        <span class="lbl">Institution attended</span>
+        <input type="text" name="education[1][school]" />
+      </div>
+      <div class="row">
+        <span class="lbl">Qualification</span>
+        <input type="text" name="education[1][degree]" />
+      </div>
+      <div class="row">
+        <span class="lbl">Start date</span>
+        <input type="month" name="education[1][start]" />
+      </div>
+      <div class="row">
+        <span class="lbl">Expected completion</span>
+        <input type="month" name="education[1][end]" />
+      </div>
+      <div class="row">
+        <span class="lbl">Institution attended</span>
+        <input type="text" name="education[2][school]" />
+      </div>
+      <div class="row">
+        <span class="lbl">Qualification</span>
+        <input type="text" name="education[2][degree]" />
+      </div>
+
+      <h2>Work history</h2>
+      <div class="row">
+        <span class="lbl">Company</span>
+        <input type="text" name="job_0_company" />
+      </div>
+      <div class="row">
+        <span class="lbl">Title</span>
+        <input type="text" name="job_0_title" />
+      </div>
+      <div class="row">
+        <span class="lbl">From</span>
+        <input type="month" name="job_0_from" />
+      </div>
+      <div class="row">
+        <span class="lbl">Company</span>
+        <input type="text" name="job_1_company" />
+      </div>
+      <div class="row">
+        <span class="lbl">Title</span>
+        <input type="text" name="job_1_title" />
+      </div>
+
+      <h2>Anything else</h2>
+      <div class="row">
+        <span class="lbl">Why do you want to work here?</span>
+        <textarea name="motivation"></textarea>
+      </div>
+      <div class="row">
+        <span class="lbl">Highest degree</span>
+        <select name="degree_level">
+          <option value="">Choose</option>
+          <option value="hs">High school</option>
+          <option value="ba">Bachelor's degree</option>
+          <option value="ma">Master's degree</option>
+        </select>
+      </div>
+      <div class="row">
+        <span class="lbl">Resume</span>
+        <input type="file" name="resume_file" accept=".pdf,.docx" />
+      </div>
+      <button type="button">Submit application</button>
+    </div>
+  </body>
+</html>

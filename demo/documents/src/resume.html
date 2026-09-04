@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Tessa Marlowe - Resume</title>
+    <!-- Source of demo/documents/Tessa_Marlowe_Resume.pdf. Render with scripts/render-demo-documents.sh.
+         Tessa Marlowe is a fictional person; every detail here is invented. -->
+    <style>
+      @page {
+        size: Letter;
+        margin: 0.7in 0.75in;
+      }
+      html {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      body {
+        margin: 0;
+        color: #1c1b18;
+        font: 10.5pt/1.45 -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      }
+      .name {
+        margin: 0;
+        font: 400 26pt/1.1 "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+        letter-spacing: -0.01em;
+      }
+      .headline {
+        margin: 4pt 0 0;
+        font-size: 11pt;
+        color: #6b675f;
+      }
+      .contact {
+        margin: 8pt 0 0;
+        padding: 0;
+        list-style: none;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4pt 14pt;
+        font-size: 9.5pt;
+        color: #3d3a34;
+      }
+      hr {
+        border: 0;
+        border-top: 1.5pt solid #1c1b18;
+        margin: 14pt 0 12pt;
+      }
+      h2 {
+        margin: 14pt 0 6pt;
+        font: 600 8.5pt/1 -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: #6b675f;
+      }
+      h2:first-of-type {
+        margin-top: 0;
+      }
+      p {
+        margin: 0 0 6pt;
+      }
+      .job {
+        margin-bottom: 9pt;
+        break-inside: avoid;
+      }
+      .job-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 12pt;
+      }
+      .job-title {
+        font-weight: 600;
+      }
+      .job-org {
+        color: #3d3a34;
+      }
+      .job-dates {
+        font-size: 9.5pt;
+        color: #6b675f;
+        white-space: nowrap;
+      }
+      ul {
+        margin: 3pt 0 0;
+        padding-left: 14pt;
+      }
+      li {
+        margin-bottom: 2pt;
+      }
+      .skills {
+        display: grid;
+        grid-template-columns: 110pt 1fr;
+        gap: 3pt 10pt;
+      }
+      .skills dt {
+        font-weight: 600;
+      }
+      .skills dd {
+        margin: 0;
+        color: #3d3a34;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1 class="name">Tessa Marlowe</h1>
+      <p class="headline">Senior software engineer, product-focused, seven years shipping web applications</p>
+      <ul class="contact">
+        <li>Portland, Oregon</li>
+        <li>(503) 555-0142</li>
+        <li>tessa.marlowe@example.com</li>
+        <li>tessamarlowe.example</li>
+        <li>github.com/tessamarlowe</li>
+      </ul>
+    </header>
+    <hr />
+
+    <h2>Summary</h2>
+    <p>
+      Engineer who likes owning a product surface end to end: talking to the people who use it, shaping the work, and
+      shipping it with tests. Most at home in TypeScript on both sides of the wire, comfortable in Python and Go, and
+      happy to be the person who makes the build faster.
+    </p>
+
+    <h2>Experience</h2>
+    <div class="job">
+      <div class="job-head">
+        <div><span class="job-title">Senior Software Engineer</span> <span class="job-org">· Fernbrook Labs, Portland, OR</span></div>
+        <div class="job-dates">Mar 2021 – present</div>
+      </div>
+      <ul>
+        <li>Lead engineer for the customer-facing web app (TypeScript, React, Node) used by 40,000 small businesses.</li>
+        <li>Cut p95 page load from 3.1 s to 1.8 s by moving rendering to the edge and trimming the client bundle by half.</li>
+        <li>Introduced end-to-end testing across the product; release incidents fell from monthly to fewer than one a quarter.</li>
+        <li>Mentor three engineers and run the team's design review.</li>
+      </ul>
+    </div>
+    <div class="job">
+      <div class="job-head">
+        <div><span class="job-title">Software Engineer</span> <span class="job-org">· Tidewater Robotics, Seattle, WA</span></div>
+        <div class="job-dates">Jul 2018 – Feb 2021</div>
+      </div>
+      <ul>
+        <li>Built the fleet telemetry dashboard (React, D3) operators use to watch 300 robots across nine warehouses.</li>
+        <li>Wrote the on-device data pipeline in Go that batches sensor readings and survives days offline.</li>
+        <li>Owned the release process for the field software, including staged rollouts and rollback tooling.</li>
+      </ul>
+    </div>
+    <div class="job">
+      <div class="job-head">
+        <div><span class="job-title">Software Engineering Intern</span> <span class="job-org">· Tidewater Robotics, Seattle, WA</span></div>
+        <div class="job-dates">Jun 2017 – Sep 2017</div>
+      </div>
+      <ul>
+        <li>Prototyped the first version of the telemetry dashboard and presented it to the operations team.</li>
+      </ul>
+    </div>
+
+    <h2>Education</h2>
+    <div class="job">
+      <div class="job-head">
+        <div><span class="job-title">B.S. Computer Science</span> <span class="job-org">· University of Washington, Seattle</span></div>
+        <div class="job-dates">Sep 2014 – Jun 2018</div>
+      </div>
+      <p>GPA 3.8. Teaching assistant for the introductory systems course.</p>
+    </div>
+
+    <h2>Skills</h2>
+    <dl class="skills">
+      <dt>Languages</dt>
+      <dd>TypeScript, JavaScript, Python, Go, SQL</dd>
+      <dt>Web</dt>
+      <dd>React, Node, Next.js, Vite, Playwright, accessibility</dd>
+      <dt>Infrastructure</dt>
+      <dd>PostgreSQL, Redis, AWS, Terraform, GitHub Actions</dd>
+      <dt>Ways of working</dt>
+      <dd>Design reviews, incident retrospectives, mentoring, writing things down</dd>
+    </dl>
+  </body>
+</html>

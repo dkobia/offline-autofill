@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Sign in</title>
+  </head>
+  <body>
+    <form id="login" action="/login" method="post">
+      <label for="user">Email</label>
+      <input id="user" name="user" type="email" />
+
+      <label for="pass">Password</label>
+      <input id="pass" name="pass" type="password" />
+
+      <label for="card">Card number</label>
+      <input id="card" name="card" type="text" inputmode="numeric" />
+
+      <label for="ssn">Social Security number</label>
+      <input id="ssn" name="ssn" type="text" />
+
+      <!-- Honeypots: the user cannot see these, so they must never be filled. -->
+      <div style="display: none">
+        <label for="trap-email">Email</label>
+        <input id="trap-email" name="trap_email" type="text" />
+      </div>
+      <div hidden>
+        <label for="trap-phone">Phone</label>
+        <input id="trap-phone" name="trap_phone" type="text" />
+      </div>
+      <div aria-hidden="true">
+        <label for="trap-name">Full name</label>
+        <input id="trap-name" name="trap_name" type="text" />
+      </div>
+
+      <label for="prefilled">City</label>
+      <input id="prefilled" name="city" type="text" value="Nairobi" />
+
+      <label for="locked">Country</label>
+      <input id="locked" name="country" type="text" readonly value="Kenya" />
+    </form>
+  </body>
+</html>

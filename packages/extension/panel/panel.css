@@ -1,0 +1,1011 @@
+/* Family design language (shared with sibling tools): precision instrument.
+   Near-monochrome inks anchored on logo ink #1f2328, hairline borders, 4/8
+   spacing, semantic color for state only. Space Grotesk carries sentences and
+   buttons, JetBrains Mono carries labels, statuses, and data. */
+
+@font-face {
+  font-family: "Space Grotesk";
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+  src: url("fonts/space-grotesk-var.woff2") format("woff2");
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 100 800;
+  font-display: swap;
+  src: url("fonts/jetbrains-mono-var.woff2") format("woff2");
+}
+
+:root {
+  color-scheme: light dark;
+  --font-display: "Space Grotesk", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --bg: #f5f5f3;
+  --surface: #ffffff;
+  --surface-2: #ecedea;
+  --ink: #1f2328;
+  --muted: #656d76;
+  --line: #dfe1de;
+  --ok: #1a7f37;
+  --warn: #9a6700;
+  --down: #b42318;
+  --warn-line: #e4cf9e;
+  --warn-surface: #fcf7ec;
+  --down-line: #eab7b1;
+  --down-surface: #fdf2f1;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #131417;
+    --surface: #1b1d21;
+    --surface-2: #26292e;
+    --ink: #e7e9eb;
+    --muted: #9aa1a8;
+    --line: #2c2f34;
+    --ok: #57ab5a;
+    --warn: #d29922;
+    --down: #e5534b;
+    --warn-line: #57461c;
+    --warn-surface: #201d15;
+    --down-line: #5f2b26;
+    --down-surface: #251817;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Author display rules below (flex sections, banner) would otherwise beat the
+   UA stylesheet's [hidden] { display: none }. */
+[hidden] {
+  display: none !important;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+/* Firefox popup: a fixed box, known before Firefox's one-shot popup
+   measurement. The viewport never scrolls (main scrolls instead), so font
+   swap or async content can never grow a viewport scrollbar and clip the
+   content sideways. */
+html.platform-firefox,
+html.platform-firefox body {
+  width: 380px;
+  height: 560px;
+}
+
+body {
+  font: 400 13px/1.55 var(--font-display);
+  background: var(--bg);
+  color: var(--ink);
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* ---- Header ---- */
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.brand-mark {
+  display: block;
+  flex: none;
+  color: var(--ink);
+}
+
+.wordmark {
+  font: 600 15px/1 var(--font-display);
+  letter-spacing: 0.01em;
+  margin: 0;
+  white-space: nowrap;
+}
+
+.header-side {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.engine-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font: 500 10px/1 var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--muted);
+  flex: none;
+}
+
+.status-dot[data-state="ok"] {
+  background: var(--ok);
+}
+
+.engine-status:has(.status-dot[data-state="ok"]) {
+  color: var(--ok);
+}
+
+.status-dot[data-state="warn"] {
+  background: var(--warn);
+}
+
+.engine-status:has(.status-dot[data-state="warn"]) {
+  color: var(--warn);
+}
+
+.status-dot[data-state="down"] {
+  background: var(--down);
+}
+
+.engine-status:has(.status-dot[data-state="down"]) {
+  color: var(--down);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .status-dot[data-state="probing"] {
+    animation: pulse 1.2s ease-in-out infinite;
+  }
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* ---- Tabs ---- */
+
+.tabs {
+  display: flex;
+  gap: 2px;
+  padding: 6px 16px 0;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg);
+}
+
+.tab {
+  font: 500 11px/1 var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  padding: 8px 10px 9px;
+  margin-bottom: -1px;
+  cursor: pointer;
+}
+
+.tab:hover {
+  color: var(--ink);
+}
+
+.tab[aria-selected="true"] {
+  color: var(--ink);
+  border-bottom-color: var(--ink);
+}
+
+/* ---- Layout ---- */
+
+/* The panel's only scroller. min-height: 0 lets it shrink below its content
+   so the fixed-height flex column can hand it the scrolling. */
+main {
+  flex: 1;
+  min-height: 0;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-gutter: stable;
+}
+
+section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+h2 {
+  font: 600 10px/1 var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--muted);
+  margin: 4px 2px 0;
+}
+
+.view-intro {
+  margin: 0 2px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* ---- Status banner ---- */
+
+#status-banner {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+#status-banner[data-tone="down"] {
+  border-color: var(--down-line);
+  background: var(--down-surface);
+}
+
+#status-banner[data-tone="warn"] {
+  border-color: var(--warn-line);
+  background: var(--warn-surface);
+}
+
+#status-banner .banner-title {
+  font: 600 13.5px/1.4 var(--font-display);
+  margin: 0;
+}
+
+#status-banner p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+#status-banner ol {
+  margin: 0;
+  padding-left: 1.3em;
+  color: var(--muted);
+  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+#status-banner code {
+  display: block;
+  font: 400 11px/1.6 var(--font-mono);
+  background: var(--surface-2);
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin-top: 4px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: all;
+  color: var(--ink);
+}
+
+#status-banner .banner-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* ---- Controls ---- */
+
+.controls {
+  display: flex;
+  align-items: end;
+  gap: 10px;
+}
+
+.controls .primary {
+  flex: 1;
+}
+
+button {
+  font: 500 12px/1 var(--font-display);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 6px;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  background: var(--surface-2);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+button.primary {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--bg);
+  font-weight: 600;
+}
+
+button.primary:hover:not(:disabled) {
+  background: var(--ink);
+  opacity: 0.88;
+}
+
+/* A disabled primary drops to the quiet outlined style so it stops competing
+   with the text that explains why it is disabled. */
+button.primary:disabled {
+  background: var(--surface);
+  border-color: var(--line);
+  color: var(--muted);
+  opacity: 1;
+}
+
+.run-status {
+  margin: 0 2px;
+  font: 500 10px/1.4 var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.run-status[data-tone="error"] {
+  color: var(--down);
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 11.5px;
+}
+
+/* ---- Form summary ---- */
+
+/* A collapsible card: the head is the disclosure control, open by default.
+   The card carries no padding of its own; head and body pad themselves, so
+   the whole head row is the click target and no negative margins are needed
+   (Chrome slots the details body, where they would not apply). */
+.summary {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  overflow-wrap: anywhere;
+}
+
+.summary-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  list-style: none;
+  cursor: pointer;
+  padding: 12px 14px;
+}
+
+.summary[open] .summary-head {
+  padding-bottom: 8px;
+}
+
+.summary-head::-webkit-details-marker {
+  display: none;
+}
+
+/* Same marker as the plan's "Not recognized" disclosure. */
+.summary-head::before {
+  content: "▸";
+  font: 500 10px/1 var(--font-mono);
+  color: var(--muted);
+  flex: none;
+}
+
+.summary[open] .summary-head::before {
+  content: "▾";
+}
+
+.summary-head .summary-tag {
+  margin-left: auto;
+}
+
+.summary-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 14px 12px;
+}
+
+.summary-label {
+  font: 600 10px/1 var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--muted);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .summary.working .summary-label {
+    animation: pulse 1.2s ease-in-out infinite;
+  }
+}
+
+.summary-tag {
+  font: 500 9px/1 var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 3px 5px;
+}
+
+.summary-purpose {
+  margin: 0;
+  font-size: 13px;
+}
+
+.summary-subhead {
+  font: 600 10px/1 var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--muted);
+  margin: 2px 0 -2px;
+}
+
+.summary-list {
+  margin: 0;
+  padding-left: 1.3em;
+  font-size: 12px;
+}
+
+.summary-list li {
+  margin-bottom: 3px;
+}
+
+.summary-list li:last-child {
+  margin-bottom: 0;
+}
+
+.summary-note {
+  margin: 0;
+  font-size: 12px;
+  color: var(--warn);
+}
+
+/* The rules' facts: data, so mono, quiet, sentence case. */
+.summary-facts {
+  margin: 0;
+  font: 500 10.5px/1.6 var(--font-mono);
+  color: var(--muted);
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+}
+
+/* ---- Plan ---- */
+
+.plan {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  padding: 4px 0;
+  overflow-wrap: anywhere;
+}
+
+/* Empty and working states: the logo motif (fields filling in) is the
+   panel's single expressive element. */
+.plan-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 28px 8px;
+  text-align: center;
+}
+
+.plan-empty .glyph {
+  display: block;
+  color: var(--muted);
+  opacity: 0.7;
+}
+
+.plan-empty p {
+  margin: 0;
+  max-width: 30ch;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.plan-empty.working p {
+  visibility: hidden;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .plan-empty.working .glyph line {
+    animation: fillin 1.5s ease-in-out infinite;
+  }
+  .plan-empty.working .glyph line:nth-child(2) {
+    animation-delay: 0.12s;
+  }
+  .plan-empty.working .glyph line:nth-child(3) {
+    animation-delay: 0.24s;
+  }
+  .plan-empty.working .glyph line:nth-child(4) {
+    animation-delay: 0.36s;
+  }
+}
+
+@keyframes fillin {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+.plan-note,
+.plan-none {
+  margin: 0;
+  padding: 10px 14px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.plan-note {
+  color: var(--warn);
+  border-bottom: 1px solid var(--line);
+}
+
+/* One grid for the whole list, rows as subgrids, so the value column lines up
+   whether or not a row carries a tag. */
+.plan-rows {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) minmax(0, 1.2fr) auto;
+}
+
+.plan-row {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: subgrid;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+}
+
+.plan-row:last-child {
+  border-bottom: none;
+}
+
+.plan-row:hover {
+  background: var(--surface-2);
+}
+
+.plan-row input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--ink);
+}
+
+.plan-label {
+  font-size: 12px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.plan-value {
+  font: 400 11.5px/1.4 var(--font-mono);
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.plan-tag,
+.document-kind {
+  font: 500 9px/1 var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 3px 5px;
+}
+
+/* An upload row with a choice: the select is the value, on a second line
+   wide enough to read a file name, since telling two resumes apart is the
+   point of it. The checkbox spans both lines; the tag stays on the first. */
+.plan-row:has(.plan-file) {
+  grid-template-rows: auto auto;
+  row-gap: 6px;
+}
+
+.plan-row:has(.plan-file) input[type="checkbox"] {
+  grid-row: 1 / span 2;
+}
+
+.plan-row:has(.plan-file) .plan-label {
+  grid-column: 2 / 4;
+}
+
+.plan-row:has(.plan-file) .plan-tag {
+  grid-column: 4;
+  grid-row: 1;
+}
+
+select.plan-file {
+  grid-column: 2 / -1;
+  grid-row: 2;
+  width: 100%;
+  min-width: 0;
+  padding: 3px 22px 3px 6px;
+  border-radius: 4px;
+  line-height: 1.3;
+}
+
+.plan-row.filled .plan-value {
+  color: var(--ok);
+}
+
+.plan-row.failed .plan-value {
+  color: var(--down);
+  text-decoration: line-through;
+}
+
+.plan-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--line);
+}
+
+/* The way back from the answers review to the plan sits apart from the save. */
+.plan-actions .plan-back {
+  margin-right: auto;
+}
+
+/* The answers review: the intro is quiet, not a warning. */
+.plan-intro {
+  margin: 0;
+  padding: 10px 14px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--muted);
+  border-bottom: 1px solid var(--line);
+}
+
+/* An answer row is a question and what was typed: the question may run to
+   two lines (it is how the user recognizes the field), the value sits under
+   it, the tag says where it goes. The checkbox spans both lines. */
+.plan-row.answer-row {
+  grid-template-rows: auto auto;
+  row-gap: 4px;
+}
+
+.plan-row.answer-row input[type="checkbox"] {
+  grid-row: 1 / span 2;
+}
+
+.plan-row.answer-row .plan-label {
+  grid-column: 2 / 4;
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-height: 1.35;
+}
+
+.plan-row.answer-row .plan-tag {
+  grid-column: 4;
+  grid-row: 1;
+  align-self: start;
+}
+
+.plan-row.answer-row .plan-value {
+  grid-column: 2 / -1;
+  grid-row: 2;
+}
+
+.plan-details {
+  border-top: 1px solid var(--line);
+  padding: 8px 14px;
+}
+
+.plan-details summary {
+  font: 500 10px/1.6 var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.plan-details ul {
+  margin: 6px 0 2px;
+  padding-left: 1.2em;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.plan-details li {
+  margin-bottom: 3px;
+}
+
+/* ---- Cards (profile entries and settings groups) ---- */
+
+/* A card is a two-column grid: short fields (names, city, dates) share a
+   row, everything else spans it. Below 280px the card is too narrow for two
+   inputs and the grid collapses to one column. */
+.card {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  padding: 12px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+  container-type: inline-size;
+}
+
+.entry-head,
+.card .field {
+  grid-column: 1 / -1;
+}
+
+.card .field.half {
+  grid-column: auto;
+}
+
+@container (max-width: 279px) {
+  .card .field.half {
+    grid-column: 1 / -1;
+  }
+}
+
+/* ---- Profile editor ---- */
+
+#profile-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+#profile-form h2:not(:first-child) {
+  margin-top: 8px;
+}
+
+.section-hint {
+  margin: -6px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.entry-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.entry-title {
+  font: 600 12px/1 var(--font-display);
+}
+
+.entry-remove {
+  font-size: 11px;
+  padding: 5px 8px;
+  color: var(--muted);
+}
+
+.entry-add {
+  align-self: flex-start;
+}
+
+/* Save bar: a sibling of the scroller, so saving never means scrolling past
+   the whole employment history. Shown only while the profile view is. */
+.profile-footer {
+  flex: none;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  background: var(--bg);
+  border-top: 1px solid var(--line);
+}
+
+.profile-footer .settings-status {
+  flex: 1;
+  margin: 0;
+}
+
+/* ---- Documents ---- */
+
+.document-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.documents-empty {
+  margin: 0 2px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* The file name is data; the facts strip beneath it is the quiet mono line the summary card uses. */
+.document-name {
+  grid-column: 1 / -1;
+  margin: 0;
+  font: 500 12.5px/1.4 var(--font-mono);
+  font-variant-ligatures: none;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.document-facts {
+  grid-column: 1 / -1;
+  margin: -6px 0 0;
+  font: 500 10.5px/1.6 var(--font-mono);
+  color: var(--muted);
+}
+
+.documents-actions {
+  display: flex;
+}
+
+/* ---- Fields (settings and profile) ---- */
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.field-label {
+  font: 600 10px/1 var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--muted);
+}
+
+.field-hint {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+input,
+select,
+textarea {
+  font: 400 12px/1.5 var(--font-display);
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 7px 10px;
+  width: 100%;
+  accent-color: var(--ink);
+}
+
+textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+
+/* Endpoints, model ids, and dates are data: render them in mono. */
+input[type="url"],
+input[type="date"],
+input[type="month"],
+#endpoint-input,
+#model-input {
+  font-family: var(--font-mono);
+}
+
+/* Data must show every character. JetBrains Mono ligates "://" and "//", and
+   Chrome splits a ligature glyph at the caret while editing, so a slash in a
+   focused URL field visibly vanished. */
+input,
+textarea,
+select,
+code,
+.plan-value {
+  font-variant-ligatures: none;
+}
+
+/* Switch: quiet track, solid ink when on, per the family design language. */
+.switch-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.switch-text {
+  font-size: 12px;
+}
+
+input.switch {
+  appearance: none;
+  width: 34px;
+  height: 20px;
+  padding: 0;
+  margin: 0;
+  flex: none;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-2);
+  cursor: pointer;
+  position: relative;
+}
+
+input.switch::before {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+
+input.switch:checked {
+  background: var(--ink);
+  border-color: var(--ink);
+}
+
+input.switch:checked::before {
+  left: 16px;
+  background: var(--bg);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  input.switch::before {
+    transition: left 120ms ease;
+  }
+}
+
+.settings-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.settings-status {
+  margin: 0 2px;
+  font: 500 11px/1.5 var(--font-mono);
+  color: var(--muted);
+}
+
+.settings-status[data-tone="error"] {
+  color: var(--down);
+}
+
+.settings-status[data-tone="ok"] {
+  color: var(--ok);
+}

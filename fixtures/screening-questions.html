@@ -1,0 +1,71 @@
+<!doctype html>
+<!--
+  The screening step of an application: the questions no profile key covers.
+  Captures label markers ("*", "(optional)", "(required)"), a question
+  answered by select and one by radio group (the answer is the option's
+  label), a textarea answer, a built-in field the profile may lack
+  (LinkedIn), an input with no label at all, and a password the extension
+  never reads. Values are set by the tests, as a person typing would.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Apply - A few more questions</title>
+  </head>
+  <body>
+    <h1>A few more questions</h1>
+    <form>
+      <h2>About you</h2>
+      <div class="row">
+        <label for="email">Email *</label>
+        <input id="email" type="email" name="email" />
+      </div>
+      <div class="row">
+        <label for="linkedin">LinkedIn profile</label>
+        <input id="linkedin" type="url" name="linkedin" />
+      </div>
+      <div class="row">
+        <label for="pronouns">Preferred pronouns (optional)</label>
+        <input id="pronouns" type="text" name="pronouns" />
+      </div>
+
+      <h2>Screening</h2>
+      <div class="row">
+        <label for="salary">Desired salary *</label>
+        <input id="salary" type="text" name="salary" />
+      </div>
+      <div class="row">
+        <label for="authorized">Are you legally authorized to work in this country? (required)</label>
+        <select id="authorized" name="authorized">
+          <option value="">Select...</option>
+          <option value="y">Yes</option>
+          <option value="n">No</option>
+        </select>
+      </div>
+      <fieldset>
+        <legend>Will you now or in the future require sponsorship?</legend>
+        <label><input type="radio" name="sponsorship" value="yes" /> Yes</label>
+        <label><input type="radio" name="sponsorship" value="no" /> No</label>
+      </fieldset>
+      <div class="row">
+        <label for="why">Why do you want to work here?</label>
+        <textarea id="why" name="why"></textarea>
+      </div>
+      <div class="row">
+        <label for="source">How did you hear about us?</label>
+        <input id="source" type="text" name="source" />
+      </div>
+      <div class="row">
+        <input id="mystery" type="text" name="q_17" />
+      </div>
+
+      <h2>Account</h2>
+      <div class="row">
+        <label for="password">Password</label>
+        <input id="password" type="password" name="password" />
+      </div>
+      <input type="hidden" name="token" value="abc" />
+      <button type="submit">Submit</button>
+    </form>
+  </body>
+</html>

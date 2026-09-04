@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128" role="img" aria-label="Offline Autofill">
+  <title>Offline Autofill</title>
+  <desc>Offline Autofill mark: three stacked form fields inside a circle, the
+    top two already filled with solid ink, the last one still empty. Family
+    motif shared with Offline TL;DR. Rendered to PNG by scripts/render-icons.sh.</desc>
+  <circle cx="64" cy="64" r="58" fill="#ffffff"/>
+  <g stroke="#1f2328" stroke-linecap="round" fill="none">
+    <line x1="34" y1="42" x2="94" y2="42" stroke-width="12"/>
+    <line x1="34" y1="64" x2="94" y2="64" stroke-width="12"/>
+    <line x1="34" y1="86" x2="94" y2="86" stroke-width="12" stroke-dasharray="0.1 20"/>
+  </g>
+  <circle cx="64" cy="64" r="58" fill="none" stroke="#1f2328" stroke-width="6"/>
+</svg>

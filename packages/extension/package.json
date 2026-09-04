@@ -1,0 +1,14 @@
+{
+  "name": "@offline-autofill/extension",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@offline-autofill/core": "workspace:*",
+    "@offline-autofill/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.2.7",
+    "@types/firefox-webext-browser": "^143.0.0"
+  }
+}

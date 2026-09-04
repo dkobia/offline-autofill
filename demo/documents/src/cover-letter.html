@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Tessa Marlowe - Cover letter</title>
+    <!-- Source of demo/documents/Tessa_Marlowe_Cover_Letter.pdf. Render with scripts/render-demo-documents.sh.
+         Tessa Marlowe and Acme Corp are fictional; every detail here is invented. -->
+    <style>
+      @page {
+        size: Letter;
+        margin: 1in 1in;
+      }
+      body {
+        margin: 0;
+        color: #1c1b18;
+        font: 11pt/1.55 -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      }
+      .name {
+        margin: 0;
+        font: 400 20pt/1.1 "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+      }
+      .contact {
+        margin: 4pt 0 0;
+        font-size: 9.5pt;
+        color: #6b675f;
+      }
+      hr {
+        border: 0;
+        border-top: 1.5pt solid #1c1b18;
+        margin: 14pt 0 22pt;
+      }
+      .meta {
+        margin: 0 0 18pt;
+        color: #3d3a34;
+      }
+      p {
+        margin: 0 0 12pt;
+      }
+      .sign {
+        margin-top: 24pt;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1 class="name">Tessa Marlowe</h1>
+      <p class="contact">418 Alder Street, Apt 3B, Portland, OR 97204 · (503) 555-0142 · tessa.marlowe@example.com</p>
+    </header>
+    <hr />
+
+    <p class="meta">
+      4 September 2026<br />
+      Hiring team, Product Engineering<br />
+      Acme Corp
+    </p>
+
+    <p>Dear hiring team,</p>
+
+    <p>
+      I am applying for the Senior Product Engineer role. For the last seven years I have built web applications for
+      people who do not think of themselves as technical: small-business owners at Fernbrook Labs, warehouse operators
+      at Tidewater Robotics. What I enjoy most is the part of the job where a vague request turns into something a
+      person can use without reading a manual, and Acme's tools for small teams look like exactly that kind of work.
+    </p>
+
+    <p>
+      At Fernbrook I lead the engineering of the customer-facing app. When I joined, page loads were slow enough that
+      support tickets mentioned it; I moved rendering to the edge, cut the client bundle in half, and brought p95 load
+      time from 3.1 to 1.8 seconds. I also introduced end-to-end testing across the product, which took release
+      incidents from monthly to fewer than one a quarter, and I mentor three engineers who are now shipping features on
+      their own. At Tidewater I wrote the on-device data pipeline in Go that has to keep working through days without a
+      network connection, which taught me to design for the unhappy path first.
+    </p>
+
+    <p>
+      I would bring that mix to Acme: product judgement, care for performance and reliability, and a habit of writing
+      things down so the next person does not have to ask. I am based in Portland and would be glad to work from the
+      office or remotely.
+    </p>
+
+    <p>Thank you for your time. I would welcome the chance to talk about the role.</p>
+
+    <p class="sign">
+      Sincerely,<br />
+      Tessa Marlowe
+    </p>
+  </body>
+</html>

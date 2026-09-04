@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Offline Autofill</title>
+    <link rel="stylesheet" href="panel.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="brand">
+        <!-- Logo mark: stacked form fields, the last one still being typed. -->
+        <svg class="brand-mark" width="20" height="20" viewBox="0 0 128 128" aria-hidden="true">
+          <circle cx="64" cy="64" r="58" fill="none" stroke="currentColor" stroke-width="7" />
+          <g stroke="currentColor" stroke-linecap="round" fill="none" stroke-width="12">
+            <line x1="34" y1="42" x2="94" y2="42" />
+            <line x1="34" y1="64" x2="94" y2="64" />
+            <line x1="34" y1="86" x2="94" y2="86" stroke-dasharray="0.1 20" />
+          </g>
+        </svg>
+        <h1 class="wordmark">Offline Autofill</h1>
+      </div>
+      <div class="header-side">
+        <div class="engine-status" role="status">
+          <span id="status-dot" class="status-dot" data-state="probing"></span>
+          <span id="status-text">Checking</span>
+        </div>
+      </div>
+    </header>
+
+    <nav class="tabs" role="tablist" aria-label="Views">
+      <button class="tab" role="tab" type="button" aria-selected="true" data-view="fill-view">Fill</button>
+      <button class="tab" role="tab" type="button" aria-selected="false" data-view="profile-view">Profile</button>
+      <button class="tab" role="tab" type="button" aria-selected="false" data-view="documents-view">Documents</button>
+      <button class="tab" role="tab" type="button" aria-selected="false" data-view="settings-view">Settings</button>
+    </nav>
+
+    <main>
+      <section id="fill-view">
+        <div id="status-banner" hidden></div>
+
+        <div class="controls">
+          <button id="scan-button" class="primary" type="button">Scan this page</button>
+          <!-- Shown once the page has been scanned: saving answers is the step after filling. -->
+          <button id="save-answers-button" type="button" title="Keep what you typed into this form for next time" hidden>Save answers</button>
+        </div>
+
+        <p id="run-status" class="run-status" hidden></p>
+
+        <details id="form-summary" class="summary" aria-live="polite" open hidden></details>
+
+        <div id="plan-output" class="plan" aria-live="polite">
+          <div class="plan-empty">
+            <!-- Large glyph, same motif as the brand mark; its lines pulse while a scan runs. -->
+            <svg class="glyph" width="64" height="64" viewBox="0 0 128 128" aria-hidden="true">
+              <g stroke="currentColor" stroke-linecap="round" fill="none" stroke-width="10">
+                <line x1="30" y1="34" x2="98" y2="34" />
+                <line x1="30" y1="56" x2="98" y2="56" />
+                <line x1="30" y1="78" x2="98" y2="78" />
+                <line x1="30" y1="100" x2="98" y2="100" stroke-dasharray="0.1 18" />
+              </g>
+            </svg>
+            <p>Scan a page to see which of its fields can be filled from your profile.</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="profile-view" hidden>
+        <p class="view-intro">Stored only in this browser and never leaves this device. The local model sees your saved questions, never your answers or other profile values.</p>
+        <div id="profile-form"></div>
+      </section>
+
+      <section id="documents-view" hidden>
+        <p id="documents-intro" class="view-intro"></p>
+        <div id="document-list" class="document-list"></div>
+        <div class="documents-actions">
+          <button id="add-document-button" type="button">Add document</button>
+          <input id="document-file-input" type="file" hidden />
+        </div>
+        <p id="documents-status" class="settings-status" hidden></p>
+      </section>
+
+      <section id="settings-view" hidden>
+        <h2>Local model</h2>
+
+        <div class="card">
+          <label class="field">
+            <span class="field-label">Use a local model</span>
+            <span class="switch-row">
+              <input id="use-model-input" class="switch" type="checkbox" role="switch" />
+              <span class="switch-text">Ask it about fields the built-in rules don’t recognize, and to describe the form</span>
+            </span>
+            <span class="field-hint">The model sees field labels, page text, and the questions of your saved answers, never your answers or other profile values.</span>
+          </label>
+
+          <label class="field">
+            <span class="field-label">Engine</span>
+            <select id="engine-select"></select>
+          </label>
+
+          <label class="field">
+            <span class="field-label">Endpoint</span>
+            <input id="endpoint-input" type="url" spellcheck="false" placeholder="http://localhost:11434" />
+            <span class="field-hint">Localhost only. Nothing leaves this machine.</span>
+          </label>
+
+          <label class="field">
+            <span class="field-label">Model</span>
+            <input id="model-input" type="text" list="model-options" spellcheck="false" placeholder="llama3.2" />
+            <datalist id="model-options"></datalist>
+            <span id="model-hint" class="field-hint">Use “Test connection” to list the models your server offers.</span>
+          </label>
+        </div>
+
+        <h2>Scanning</h2>
+
+        <div class="card">
+          <label class="field">
+            <span class="field-label">Form summary</span>
+            <span class="switch-row">
+              <input id="summary-input" class="switch" type="checkbox" role="switch" />
+              <span class="switch-text">Describe the form after each scan</span>
+            </span>
+            <span class="field-hint">The built-in rules outline the form; the local model, when on, explains what it is for and how to complete it.</span>
+          </label>
+        </div>
+
+        <h2>Filling</h2>
+
+        <div class="card">
+          <label class="field">
+            <span class="field-label">Overwrite</span>
+            <span class="switch-row">
+              <input id="overwrite-input" class="switch" type="checkbox" role="switch" />
+              <span class="switch-text">Replace values already in a field</span>
+            </span>
+          </label>
+        </div>
+
+        <div class="settings-actions">
+          <button id="test-connection-button" type="button">Test connection</button>
+          <button id="save-settings-button" class="primary" type="button">Save</button>
+        </div>
+        <p id="settings-status" class="settings-status" hidden></p>
+      </section>
+    </main>
+
+    <!-- Outside the scroller so it stays put while the (long) profile form scrolls. -->
+    <footer id="profile-footer" class="profile-footer" hidden>
+      <p id="profile-status" class="settings-status" hidden></p>
+      <button id="save-profile-button" class="primary" type="button">Save profile</button>
+    </footer>
+
+    <script type="module" src="panel.js"></script>
+  </body>
+</html>

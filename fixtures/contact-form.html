@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Checkout - contact details</title>
+  </head>
+  <body>
+    <h1>Contact details</h1>
+    <form id="contact" action="/checkout" method="post">
+      <label for="given">First name</label>
+      <input id="given" name="given" type="text" autocomplete="given-name" />
+
+      <label for="family">Last name</label>
+      <input id="family" name="family" type="text" autocomplete="family-name" />
+
+      <label for="email">Email address</label>
+      <input id="email" name="email" type="email" autocomplete="email" />
+
+      <label for="phone">Mobile</label>
+      <input id="phone" name="phone" type="tel" autocomplete="tel" placeholder="+1 555 000 0000" />
+
+      <fieldset>
+        <legend>Shipping address</legend>
+        <label for="addr1">Street address</label>
+        <input id="addr1" name="addr1" type="text" autocomplete="shipping address-line1" />
+        <label for="addr2">Apartment, suite, etc.</label>
+        <input id="addr2" name="addr2" type="text" autocomplete="shipping address-line2" />
+        <label for="city">City</label>
+        <input id="city" name="city" type="text" autocomplete="shipping address-level2" />
+        <label for="state">State</label>
+        <select id="state" name="state" autocomplete="shipping address-level1">
+          <option value="">Select</option>
+          <option value="CA">California</option>
+          <option value="NY">New York</option>
+          <option value="WA">Washington</option>
+        </select>
+        <label for="zip">ZIP</label>
+        <input id="zip" name="zip" type="text" autocomplete="shipping postal-code" />
+        <label for="country">Country</label>
+        <select id="country" name="country" autocomplete="shipping country">
+          <option value="">Select</option>
+          <option value="US">United States</option>
+          <option value="GB">United Kingdom</option>
+          <option value="KE">Kenya</option>
+        </select>
+      </fieldset>
+
+      <fieldset>
+        <legend>Preferred contact method</legend>
+        <label><input type="radio" name="method" value="email" /> Email</label>
+        <label><input type="radio" name="method" value="phone" /> Phone</label>
+      </fieldset>
+
+      <label><input type="checkbox" name="newsletter" /> Send me the newsletter</label>
+      <input type="hidden" name="csrf" value="token" />
+      <button type="submit">Continue</button>
+    </form>
+  </body>
+</html>

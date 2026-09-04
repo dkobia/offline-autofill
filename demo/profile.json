@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "identity": {
+    "firstName": "Tessa",
+    "lastName": "Marlowe"
+  },
+  "contact": {
+    "email": "tessa.marlowe@example.com",
+    "phone": "(503) 555-0142",
+    "website": "https://tessamarlowe.example",
+    "linkedin": "https://www.linkedin.com/in/tessa-marlowe",
+    "github": "https://github.com/tessamarlowe"
+  },
+  "address": [
+    {
+      "line1": "418 Alder Street",
+      "line2": "Apt 3B",
+      "city": "Portland",
+      "region": "Oregon",
+      "postalCode": "97204",
+      "country": "United States"
+    }
+  ],
+  "education": [
+    {
+      "institution": "University of Washington",
+      "degree": "Bachelor of Science",
+      "fieldOfStudy": "Computer Science",
+      "startDate": "2014-09",
+      "endDate": "2018-06",
+      "gpa": "3.8"
+    }
+  ],
+  "employment": [
+    {
+      "employer": "Fernbrook Labs",
+      "title": "Senior Software Engineer",
+      "location": "Portland, OR",
+      "startDate": "2021-03",
+      "description": "Lead engineer for the customer-facing web app (TypeScript, React, Node). Cut p95 page load by 40%, introduced end-to-end testing, and mentor three engineers."
+    },
+    {
+      "employer": "Tidewater Robotics",
+      "title": "Software Engineer",
+      "location": "Seattle, WA",
+      "startDate": "2018-07",
+      "endDate": "2021-02",
+      "description": "Built the fleet telemetry dashboard and the on-device data pipeline in Python and Go. Owned the release process for the field software."
+    }
+  ],
+  "answers": []
+}

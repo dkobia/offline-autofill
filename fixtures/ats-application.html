@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Job Application for Staff Software Engineer</title>
+  </head>
+  <body>
+    <!-- Trimmed from a hosted applicant tracking system job board:
+         react-select comboboxes with a hidden required input beside each, visually
+         hidden file inputs behind "Attach" buttons, and custom screening questions
+         whose labels are whole sentences. -->
+    <h1>Staff Software Engineer</h1>
+    <p>Apply for the Staff Software Engineer role at Acme. Fields marked with an asterisk are required.</p>
+    <form id="application-form">
+      <div>
+        <div>
+          <label id="first_name-label" for="first_name" class="label">First Name<span class="required">*</span></label>
+          <input id="first_name" aria-label="First Name" aria-required="true" type="text" maxlength="255" autocomplete="given-name" value="" />
+        </div>
+        <div>
+          <label id="last_name-label" for="last_name" class="label">Last Name<span class="required">*</span></label>
+          <input id="last_name" aria-label="Last Name" aria-required="true" type="text" maxlength="255" autocomplete="family-name" value="" />
+        </div>
+        <div>
+          <label id="preferred_name-label" for="preferred_name" class="label">Preferred First Name</label>
+          <input id="preferred_name" aria-label="Preferred First Name" type="text" maxlength="255" value="" />
+        </div>
+        <div>
+          <label id="email-label" for="email" class="label">Email<span class="required">*</span></label>
+          <input id="email" aria-label="Email" aria-required="true" type="text" maxlength="255" autocomplete="email" value="" />
+        </div>
+        <fieldset>
+          <div>
+            <label id="country-label" for="country" class="label select__label">Country<span class="required">*</span></label>
+            <div class="select__control">
+              <div class="select__value-container">
+                <div id="react-select-country-placeholder" class="select__placeholder">Select...</div>
+                <input
+                  id="country"
+                  class="select__input"
+                  type="text"
+                  role="combobox"
+                  aria-autocomplete="list"
+                  aria-expanded="false"
+                  aria-haspopup="true"
+                  aria-labelledby="country-label"
+                  aria-describedby="react-select-country-placeholder"
+                  aria-required="true"
+                  autocomplete="off"
+                  spellcheck="false"
+                  value=""
+                />
+              </div>
+            </div>
+            <input required="" tabindex="-1" aria-hidden="true" class="requiredInput" value="" />
+          </div>
+          <div>
+            <label id="phone-label" for="phone" class="label">Phone<span class="required">*</span></label>
+            <input id="phone" aria-label="Phone" aria-required="true" type="tel" maxlength="255" />
+          </div>
+        </fieldset>
+        <div>
+          <label id="candidate-location-label" for="candidate-location" class="label select__label">Location (City)<span class="required">*</span></label>
+          <div class="select__control">
+            <div class="select__value-container">
+              <div id="react-select-candidate-location-placeholder" class="select__placeholder">Select...</div>
+              <input
+                id="candidate-location"
+                class="select__input"
+                type="text"
+                role="combobox"
+                aria-autocomplete="list"
+                aria-expanded="false"
+                aria-haspopup="true"
+                aria-labelledby="candidate-location-label"
+                aria-required="true"
+                autocomplete="off"
+                value=""
+              />
+            </div>
+          </div>
+          <input required="" tabindex="-1" aria-hidden="true" class="requiredInput" value="" />
+        </div>
+        <!-- The real nesting: the input sits four wrappers under the group that names it, behind a generic "Attach" label. -->
+        <div class="field-wrapper">
+          <div role="group" aria-labelledby="upload-label-resume" aria-required="true" class="file-upload">
+            <div id="upload-label-resume" class="label upload-label">Resume/CV<span class="required">*</span></div>
+            <div class="file-upload__wrapper">
+              <div class="button-container">
+                <div class="secondary-button">
+                  <div>
+                    <button type="button">Attach</button>
+                    <label class="visually-hidden" for="resume">Attach</label>
+                    <input id="resume" class="visually-hidden" type="file" accept=".pdf,.doc,.docx,.txt,.rtf" />
+                  </div>
+                </div>
+                <div class="secondary-button">
+                  <div>
+                    <button type="button">Enter manually</button>
+                    <label class="visually-hidden" for="resume_text">Enter manually</label>
+                  </div>
+                </div>
+                <p class="file-upload__filetypes">Accepted file types: pdf, doc, docx, txt, rtf</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="field-wrapper">
+          <div role="group" aria-labelledby="upload-label-cover_letter" class="file-upload">
+            <div id="upload-label-cover_letter" class="label upload-label">Cover Letter</div>
+            <div class="file-upload__wrapper">
+              <div class="button-container">
+                <div class="secondary-button">
+                  <div>
+                    <button type="button">Attach</button>
+                    <label class="visually-hidden" for="cover_letter">Attach</label>
+                    <input id="cover_letter" class="visually-hidden" type="file" accept=".pdf,.doc,.docx,.txt,.rtf" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div>
+          <label id="question_1-label" for="question_1" class="label">LinkedIn Profile<span class="required">*</span></label>
+          <input id="question_1" aria-label="LinkedIn Profile" aria-required="true" type="text" maxlength="255" value="" />
+        </div>
+        <div>
+          <label id="question_2-label" for="question_2" class="label select__label">Are you legally authorized to work in the United States for Acme?<span class="required">*</span></label>
+          <div class="select__control">
+            <input id="question_2" class="select__input" type="text" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-haspopup="true" aria-labelledby="question_2-label" autocomplete="off" value="" />
+          </div>
+          <input required="" tabindex="-1" aria-hidden="true" class="requiredInput" value="" />
+        </div>
+        <div>
+          <label id="question_3-label" for="question_3" class="label select__label">Are you located in one of the following states: CA, WA, TX, TN, NC, GA, NY<span class="required">*</span></label>
+          <div class="select__control">
+            <input id="question_3" class="select__input" type="text" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-haspopup="true" aria-labelledby="question_3-label" autocomplete="off" value="" />
+          </div>
+          <input required="" tabindex="-1" aria-hidden="true" class="requiredInput" value="" />
+        </div>
+        <div>
+          <label id="question_4-label" for="question_4" class="label select__label">Final interviews for this role may take place in our office in San Francisco. Are you willing to travel to San Francisco for final interviews? Travel expenses would be covered by Acme.<span class="required">*</span></label>
+          <div class="select__control">
+            <input id="question_4" class="select__input" type="text" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-haspopup="true" aria-labelledby="question_4-label" autocomplete="off" value="" />
+          </div>
+          <input required="" tabindex="-1" aria-hidden="true" class="requiredInput" value="" />
+        </div>
+        <div>
+          <label id="question_5-label" for="question_5" class="label">What aspects of this role and Acme appeal to you?<span class="required">*</span></label>
+          <textarea id="question_5" aria-label="What aspects of this role and Acme appeal to you?" aria-required="true" rows="4"></textarea>
+        </div>
+        <div>
+          <label id="question_6-label" for="question_6" class="label select__label">How many years of professional experience do you have as a Software Engineer?<span class="required">*</span></label>
+          <div class="select__control">
+            <input id="question_6" class="select__input" type="text" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-haspopup="true" aria-labelledby="question_6-label" autocomplete="off" value="" />
+          </div>
+          <input required="" tabindex="-1" aria-hidden="true" class="requiredInput" value="" />
+        </div>
+        <div>
+          <!-- Already answered: the widget dropped its placeholder, shows the choice beside the input's container, and left the input empty. -->
+          <label id="question_7-label" for="question_7" class="label select__label">Have you previously worked at or consulted for Acme?<span class="required">*</span></label>
+          <div class="select__control">
+            <div class="select__value-container select__value-container--has-value">
+              <div class="select__single-value">No</div>
+              <div class="select__input-container" data-value="">
+                <input id="question_7" class="select__input" type="text" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-haspopup="true" aria-labelledby="question_7-label" aria-required="true" autocomplete="off" value="" />
+              </div>
+            </div>
+            <div class="select__indicators"><button type="button" aria-label="Toggle flyout" tabindex="-1"><svg viewBox="0 0 24 24"></svg></button></div>
+          </div>
+          <input required="" tabindex="-1" aria-hidden="true" class="requiredInput" value="" />
+        </div>
+      </div>
+      <button type="submit">Submit application</button>
+    </form>
+  </body>
+</html>
