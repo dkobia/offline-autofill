@@ -91,6 +91,11 @@ sends the model the page title, headings, intro text, button labels, and field l
 Load the profile and the documents as `demo/README.md` describes, open `demo/index.html`, and scan. Nothing on that
 page is real and nothing entered there is sent anywhere.
 
+## Install
+
+- Chrome / Edge: not yet listed on the Chrome Web Store - build and load it from source below.
+- Firefox: not yet listed - build and load it from source below.
+
 ## Quick start (developer mode)
 
 1. Build the extension:
