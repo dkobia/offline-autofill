@@ -42,8 +42,17 @@ export function keyFitsField(field: CollectedField, key: FillKey, answers: reado
     const spec = answers.find((answer) => answer.key === key);
     return spec !== undefined && !spec.multiline;
   }
+  // The "Country" inside a phone group is the dialing code, which the
+  // widget derives from the number typed into the field beside it; the
+  // address country is another thing and would fight the number.
+  if (key === "address.country" && field.sectionText && PHONE_SECTION.test(field.sectionText)) {
+    return false;
+  }
   return field.tag !== "textarea" || TEXTAREA_KEYS.has(key);
 }
+
+/** A section (fieldset legend or heading) that groups a phone number's parts. */
+const PHONE_SECTION = /\b(phone|telephone|mobile|cell)\b/i;
 
 /** The texts a field is named by, each a candidate for a whole-label match. */
 function labelTexts(field: CollectedField): string[] {

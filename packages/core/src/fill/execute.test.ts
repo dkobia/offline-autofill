@@ -164,12 +164,19 @@ function comboboxDocument(
       li.addEventListener("click", () => {
         shown.textContent = name;
         input.value = "";
+        lastTyped = "";
         list.innerHTML = "";
       });
       list.append(li);
     }
   };
+  // React's value tracker: an input event that carries the value the widget last saw is not a change.
+  let lastTyped = input.value;
   input.addEventListener("input", () => {
+    if (input.value === lastTyped) {
+      return;
+    }
+    lastTyped = input.value;
     const typed = input.value.toLowerCase();
     const matching = options.filter((option) => option.toLowerCase().startsWith(typed));
     if (delayMs > 0) {
@@ -180,6 +187,26 @@ function comboboxDocument(
     }
   });
   return { document, input, shown };
+}
+
+/** linkedom has no KeyboardEvent; the executor falls back to the global one, so a test lends it a minimal one for its duration. */
+async function withKeyboardEvent<T>(document: Document, run: () => Promise<T>): Promise<T> {
+  const Base = ((document.defaultView as unknown as { Event?: typeof Event } | null)?.Event ?? Event) as typeof Event;
+  class MinimalKeyboardEvent extends Base {
+    key: string;
+    constructor(type: string, init: KeyboardEventInit = {}) {
+      super(type, init);
+      this.key = init.key ?? "";
+    }
+  }
+  const world = globalThis as { KeyboardEvent?: unknown };
+  const previous = world.KeyboardEvent;
+  world.KeyboardEvent = MinimalKeyboardEvent;
+  try {
+    return await run();
+  } finally {
+    world.KeyboardEvent = previous;
+  }
 }
 
 describe("applyAssignments on comboboxes", () => {
@@ -254,6 +281,41 @@ describe("applyAssignments on comboboxes", () => {
     expect(outcome).toEqual({ filled: [], failed: [{ ref: "#country", reason: "no-option-match" }] });
     expect(input.value).toBe("");
     expect(shown.textContent).toBe("");
+  });
+
+  it("closes a list still open after a failed pick, and leaves alone one the widget closed itself", async () => {
+    // Escape is the executor's only way to close a list.
+    const open = comboboxDocument(["Canada", "Mexico"]);
+    const openList = open.document.getElementById("country-list")!;
+    open.input.addEventListener("keydown", (event) => {
+      if ((event as KeyboardEvent).key === "Escape") openList.innerHTML = "";
+    });
+    const missed = await withKeyboardEvent(open.document, () =>
+      applyAssignments(open.document, [{ ref: "#country", value: "Atlantis" }], { optionsTimeoutMs: 100 }),
+    );
+    expect(missed.failed).toEqual([{ ref: "#country", reason: "no-option-match" }]);
+    expect(open.document.querySelectorAll('[role="option"]')).toHaveLength(0);
+
+    // react-select answers Escape on a closed widget by opening it. A widget
+    // that shows the dialing code rather than the option's label fails the
+    // read-back after closing its list itself, and must be left closed.
+    const closed = comboboxDocument(["United Kingdom +44"]);
+    const closedList = closed.document.getElementById("country-list")!;
+    closedList.addEventListener("click", () => void (closed.shown.textContent = "+44"));
+    closed.input.addEventListener("keydown", (event) => {
+      if ((event as KeyboardEvent).key === "Escape" && closedList.children.length === 0) {
+        const li = closed.document.createElement("li");
+        li.setAttribute("role", "option");
+        li.textContent = "United Kingdom +44";
+        closedList.append(li);
+      }
+    });
+    const mismatched = await withKeyboardEvent(closed.document, () =>
+      applyAssignments(closed.document, [{ ref: "#country", value: "United Kingdom" }]),
+    );
+    expect(mismatched.failed).toEqual([{ ref: "#country", reason: "readback-mismatch" }]);
+    expect(closed.document.querySelectorAll('[role="option"]')).toHaveLength(0);
+    expect(closed.input.value).toBe("");
   });
 
   it("treats an input backed by a native datalist as plain text", async () => {

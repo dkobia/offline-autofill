@@ -145,3 +145,56 @@ export function collectFormContext(document: Document, env: CollectEnvironment =
   }
   return context;
 }
+
+/**
+ * One context for a page made of several frames (a careers page whose
+ * application form is embedded from another site), in the order the frames
+ * were collected: the first title that exists, then headings, prose,
+ * buttons, and uploads joined under the budgets collectFormContext applies
+ * to a single document. The submit button is the first one any frame told
+ * apart, and blocked reasons stay distinct.
+ */
+export function mergeFormContexts(contexts: FormContext[]): FormContext {
+  const merged: FormContext = { title: "", headings: [], intro: "", buttons: [], uploads: [], blockedUploads: [] };
+  const paragraphs: string[] = [];
+  let used = 0;
+  for (const context of contexts) {
+    if (!merged.title && context.title) {
+      merged.title = context.title;
+    }
+    for (const heading of context.headings) {
+      if (merged.headings.length < MAX_HEADINGS) {
+        merged.headings.push(heading);
+      }
+    }
+    for (const paragraph of context.intro.split("\n")) {
+      if (!paragraph || used >= MAX_INTRO_CHARS) {
+        continue;
+      }
+      const room = MAX_INTRO_CHARS - used;
+      const kept = paragraph.length > room ? clip(paragraph, room) : paragraph;
+      paragraphs.push(kept);
+      used += kept.length + 1;
+    }
+    for (const button of context.buttons) {
+      if (!merged.buttons.includes(button) && merged.buttons.length < MAX_BUTTONS) {
+        merged.buttons.push(button);
+      }
+    }
+    if (merged.submit === undefined && context.submit !== undefined) {
+      merged.submit = context.submit;
+    }
+    for (const upload of context.uploads) {
+      if (merged.uploads.length < MAX_UPLOADS) {
+        merged.uploads.push(upload);
+      }
+    }
+    for (const reason of context.blockedUploads) {
+      if (!merged.blockedUploads.includes(reason)) {
+        merged.blockedUploads.push(reason);
+      }
+    }
+  }
+  merged.intro = paragraphs.join("\n");
+  return merged;
+}

@@ -96,14 +96,22 @@ describe("mapByHeuristics on a hosted ATS application", () => {
     expect(keys.get("preferred_name")).toBe("identity.firstName");
     expect(keys.get("email")).toBe("contact.email");
     expect(keys.get("phone")).toBe("contact.phone");
-    expect(keys.get("country")).toBe("address.country");
     expect(keys.get("candidate-location")).toBe("address.city");
     expect(keys.get("question_1")).toBe("contact.linkedin");
   });
 
+  it("leaves the phone group's country to the widget, which derives the dialing code from the number", () => {
+    expect(keys.get("country")).toBeUndefined();
+    expect(keyFitsField(field({ name: "c", label: "Country", sectionText: "Phone" }), "address.country")).toBe(false);
+    expect(keyFitsField(field({ name: "c", label: "Country", sectionText: "Mobile number" }), "address.country")).toBe(false);
+    expect(keyFitsField(field({ name: "c", label: "Country", sectionText: "Phone" }), "contact.phone")).toBe(true);
+    expect(keyFitsField(field({ name: "c", label: "Country", sectionText: "Home address" }), "address.country")).toBe(true);
+    expect(keyFitsField(field({ name: "c", label: "Country" }), "address.country")).toBe(true);
+  });
+
   it("leaves screening questions to the model, even when a keyword appears inside them", () => {
     // "this role", "states", "Software Engineer" all occur in these labels.
-    expect(unmapped.map((f) => f.id)).toEqual(["question_2", "question_3", "question_4", "question_5", "question_6", "question_7"]);
+    expect(unmapped.map((f) => f.id)).toEqual(["country", "question_2", "question_3", "question_4", "question_5", "question_6", "question_7"]);
   });
 });
 

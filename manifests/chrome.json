@@ -7,5 +7,12 @@
   "side_panel": {
     "default_path": "panel.html"
   },
-  "permissions": ["storage", "unlimitedStorage", "activeTab", "scripting", "sidePanel"]
+  "permissions": [
+    "storage",
+    "unlimitedStorage",
+    "activeTab",
+    "scripting",
+    "webNavigation",
+    "sidePanel"
+  ]
 }

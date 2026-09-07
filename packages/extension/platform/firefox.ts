@@ -1,3 +1,4 @@
+import { pageFrames } from "./frames";
 import type { ActiveTab, MessageHandler, Platform } from "./types";
 
 export const platform: Platform = {
@@ -20,8 +21,8 @@ export const platform: Platform = {
     return browser.runtime.sendMessage(message);
   },
 
-  sendTabMessage(tabId: number, message: unknown): Promise<unknown> {
-    return browser.tabs.sendMessage(tabId, message);
+  sendTabMessage(tabId: number, message: unknown, frameId: number): Promise<unknown> {
+    return browser.tabs.sendMessage(tabId, message, { frameId });
   },
 
   onMessage(handler: MessageHandler): void {
@@ -39,11 +40,22 @@ export const platform: Platform = {
     return { id: tab.id, complete: tab.status === "complete" };
   },
 
-  async injectContentScript(tabId: number): Promise<void> {
-    await browser.scripting.executeScript({ target: { tabId }, files: ["content.js"] });
+  async listFrames(tabId: number): Promise<number[]> {
+    let frames: browser.webNavigation._GetAllFramesReturnDetails[] | null = null;
+    try {
+      frames = await browser.webNavigation.getAllFrames({ tabId });
+    } catch (error) {
+      console.error("[offline-autofill] listing frames failed", error);
+    }
+    return pageFrames(frames ?? []);
+  },
+
+  async injectContentScript(tabId: number, frameId: number): Promise<void> {
+    await browser.scripting.executeScript({ target: { tabId, frameIds: [frameId] }, files: ["content.js"] });
   },
 
   initPanelBehavior(): void {
     // Firefox uses an action popup; nothing to configure.
   },
 };
+

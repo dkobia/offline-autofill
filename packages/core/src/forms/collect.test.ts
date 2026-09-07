@@ -144,6 +144,11 @@ describe("collectFields (ats-application.html)", () => {
     expect(byId.get("candidate-location")!.label).toBe("Location (City)*");
   });
 
+  it("names the phone group by its legend, visually hidden or not", () => {
+    expect(byId.get("country")!.sectionText).toBe("Phone");
+    expect(byId.get("phone")!.sectionText).toBe("Phone");
+  });
+
   it("marks the hidden required inputs beside each combobox invisible", () => {
     const anonymous = fields.filter((field) => !field.id);
     expect(anonymous.length).toBeGreaterThan(0);

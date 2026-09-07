@@ -1,3 +1,4 @@
+import { pageFrames } from "./frames";
 import type { ActiveTab, MessageHandler, Platform } from "./types";
 
 export const platform: Platform = {
@@ -20,8 +21,8 @@ export const platform: Platform = {
     return chrome.runtime.sendMessage(message);
   },
 
-  sendTabMessage(tabId: number, message: unknown): Promise<unknown> {
-    return chrome.tabs.sendMessage(tabId, message);
+  sendTabMessage(tabId: number, message: unknown, frameId: number): Promise<unknown> {
+    return chrome.tabs.sendMessage(tabId, message, { frameId });
   },
 
   onMessage(handler: MessageHandler): void {
@@ -47,8 +48,18 @@ export const platform: Platform = {
     return { id: tab.id, complete: tab.status === "complete" };
   },
 
-  async injectContentScript(tabId: number): Promise<void> {
-    await chrome.scripting.executeScript({ target: { tabId }, files: ["content.js"] });
+  async listFrames(tabId: number): Promise<number[]> {
+    let frames: chrome.webNavigation.GetAllFrameResultDetails[] | null = null;
+    try {
+      frames = await chrome.webNavigation.getAllFrames({ tabId });
+    } catch (error) {
+      console.error("[offline-autofill] listing frames failed", error);
+    }
+    return pageFrames(frames ?? []);
+  },
+
+  async injectContentScript(tabId: number, frameId: number): Promise<void> {
+    await chrome.scripting.executeScript({ target: { tabId, frameIds: [frameId] }, files: ["content.js"] });
   },
 
   initPanelBehavior(): void {
@@ -57,3 +68,4 @@ export const platform: Platform = {
       .catch((error: unknown) => console.error("[offline-autofill] sidePanel behavior failed", error));
   },
 };
+

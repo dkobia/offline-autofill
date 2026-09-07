@@ -3,7 +3,7 @@ import { loadFixture, parseDocument } from "../fixtures.test-util";
 import { collectFields } from "../forms/collect";
 import { uploadLabel } from "../forms/uploads";
 import { eligibleFields } from "../mapping/resolve";
-import { collectFormContext, MAX_HEADINGS, MAX_INTRO_CHARS } from "./context";
+import { collectFormContext, mergeFormContexts, MAX_HEADINGS, MAX_INTRO_CHARS } from "./context";
 import { outlineForm } from "./outline";
 import { buildSummaryPrompt } from "./prompt";
 
@@ -154,5 +154,54 @@ describe("collectFormContext buttons out of the tab order", () => {
     const context = collectFormContext(page);
     expect(context.buttons).toEqual(["Add another job", "Submit application"]);
     expect(context.submit).toBe("Submit application");
+  });
+});
+
+describe("mergeFormContexts", () => {
+  const careers: ReturnType<typeof collectFormContext> = {
+    title: "Careers at Acme",
+    headings: ["Staff Software Engineer", "About the role"],
+    intro: "Acme builds tools.\nYou will lead a team.",
+    buttons: ["Share", "Apply"],
+    uploads: [],
+    blockedUploads: [],
+  };
+  const embed = collectFormContext(loadFixture("ats-application.html"));
+
+  it("takes the first title and joins the rest in frame order", () => {
+    const merged = mergeFormContexts([careers, embed]);
+    expect(merged.title).toBe("Careers at Acme");
+    expect(merged.headings).toEqual(["Staff Software Engineer", "About the role", "Staff Software Engineer"]);
+    expect(merged.intro).toBe(`Acme builds tools.\nYou will lead a team.\n${embed.intro}`);
+    expect(merged.buttons).toEqual(["Share", "Apply", "Attach", "Enter manually", "Submit application"]);
+    expect(merged.submit).toBe("Submit application");
+    expect(merged.uploads).toEqual(["Resume/CV", "Cover Letter"]);
+  });
+
+  it("fills a missing title from a later frame and keeps the first submit button", () => {
+    const merged = mergeFormContexts([{ ...careers, title: "", submit: "Apply" }, embed]);
+    expect(merged.title).toBe(embed.title);
+    expect(merged.submit).toBe("Apply");
+  });
+
+  it("holds the single-document budgets across frames", () => {
+    const heavy = { ...careers, headings: Array.from({ length: MAX_HEADINGS }, (_, i) => `H${i}`), intro: "x".repeat(MAX_INTRO_CHARS) };
+    const merged = mergeFormContexts([heavy, embed]);
+    expect(merged.headings).toHaveLength(MAX_HEADINGS);
+    expect(merged.intro.length).toBeLessThanOrEqual(MAX_INTRO_CHARS);
+    expect(merged.intro).not.toContain(embed.intro);
+  });
+
+  it("keeps blocked reasons distinct and buttons once each", () => {
+    const merged = mergeFormContexts([
+      { ...careers, buttons: ["Apply"], blockedUploads: ["identity-document"] },
+      { ...careers, buttons: ["Apply", "Back"], blockedUploads: ["identity-document"] },
+    ]);
+    expect(merged.buttons).toEqual(["Apply", "Back"]);
+    expect(merged.blockedUploads).toEqual(["identity-document"]);
+  });
+
+  it("is a context of nothing when there are no frames", () => {
+    expect(mergeFormContexts([])).toEqual({ title: "", headings: [], intro: "", buttons: [], uploads: [], blockedUploads: [] });
   });
 });

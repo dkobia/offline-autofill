@@ -43,6 +43,18 @@ describe("resolveMappings", () => {
     expect(result.unmapped.map((f) => f.name)).toEqual(["pronouns", "motivation"]);
   });
 
+  it("refuses the address country for a phone group's dialing-code selector, from the model as from the rules", async () => {
+    const ats = collectFields(loadFixture("ats-application.html"));
+    const country = ats.find((f) => f.id === "country")!;
+    const mapper: FieldMapper = {
+      name: "fake",
+      mapFields: async () => [{ ref: country.ref, key: "address.country", entry: 0, source: "model", confidence: 0.6 }],
+    };
+    const result = await resolveMappings(ats, mapper);
+    expect(result.mappings.some((m) => m.ref === country.ref)).toBe(false);
+    expect(result.unmapped.map((f) => f.id)).toContain("country");
+  });
+
   it("never offers blocked or invisible fields to anyone", async () => {
     const login = collectFields(loadFixture("hidden-fields.html"));
     const mapper: FieldMapper = { name: "fake", mapFields: vi.fn(async () => []) };

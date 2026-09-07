@@ -29,19 +29,28 @@ export interface Platform {
 
   /** Sends a one-shot message to the background and awaits the response. */
   sendMessage(message: unknown): Promise<unknown>;
-  /** Sends a one-shot message to the content script of a tab. Rejects when the tab has no listener. */
-  sendTabMessage(tabId: number, message: unknown): Promise<unknown>;
+  /** Sends a one-shot message to the content script of one frame of a tab. Rejects when the frame has no listener. */
+  sendTabMessage(tabId: number, message: unknown, frameId: number): Promise<unknown>;
   onMessage(handler: MessageHandler): void;
 
   /** The tab the user is looking at in the last focused window. */
   getActiveTab(): Promise<ActiveTab | undefined>;
 
   /**
-   * Injects the content script into a tab. Needed for tabs that were already
-   * open when the extension was installed or reloaded: declared content
-   * scripts are only added to pages loaded afterwards.
+   * The frames of a tab that could hold a page: the top frame first, then
+   * the subframes with an http(s) or file URL, by ascending id. Application
+   * forms are routinely embedded from another site (Greenhouse, Lever,
+   * Workday), so a page is the set of its frames. Ids only, never URLs.
    */
-  injectContentScript(tabId: number): Promise<void>;
+  listFrames(tabId: number): Promise<number[]>;
+
+  /**
+   * Injects the content script into one frame of a tab. Needed for tabs that
+   * were already open when the extension was installed or reloaded: declared
+   * content scripts are only added to pages loaded afterwards. Rejects for a
+   * cross-origin frame, which activeTab does not cover.
+   */
+  injectContentScript(tabId: number, frameId: number): Promise<void>;
 
   /** Chrome: make the toolbar button open the side panel. Firefox: no-op (popup). */
   initPanelBehavior(): void;

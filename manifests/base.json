@@ -3,7 +3,13 @@
   "name": "Offline Autofill",
   "version": "0.1.0",
   "description": "Fill forms from a profile that never leaves your device. Local models only (Ollama, LM Studio, llama.cpp). No cloud, no telemetry.",
-  "permissions": ["storage", "unlimitedStorage", "activeTab", "scripting"],
+  "permissions": [
+    "storage",
+    "unlimitedStorage",
+    "activeTab",
+    "scripting",
+    "webNavigation"
+  ],
   "host_permissions": [
     "http://localhost/*",
     "http://127.0.0.1/*",
@@ -27,9 +33,14 @@
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
-      "js": ["content.js"],
-      "run_at": "document_idle"
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle",
+      "all_frames": true
     }
   ]
 }

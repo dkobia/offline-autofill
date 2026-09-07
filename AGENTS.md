@@ -64,6 +64,13 @@ Load `dist/chrome` via chrome://extensions (Load unpacked) and `dist/firefox` vi
 4. The panel shows the plan; the user unticks what they do not want; `applyAssignments` writes the rest through the platform's own value setters and fires the events a keystroke would.
    Comboboxes (react-select and kin, flagged `combobox` by the collector) are filled by opening them, typing, and choosing the matching option; a bare write would leave search text and no selection.
    Every write is read back with case and punctuation folded, so a widget that reformats a phone number is still a fill.
+   A failed pick retreats (search text cleared, focus released) and sends Escape only while the list is still open: react-select answers Escape on a closed widget by opening it.
+
+A page is the set of its frames: application forms are routinely embedded from another site (Greenhouse, Lever, Workday) in a cross-origin iframe on a company careers page.
+The content script is declared for every frame (`all_frames`), the background lists a tab's frames through the platform (`listFrames`, backed by `webNavigation.getAllFrames`) and asks each one, and the answers are joined top frame first: fields and uploads concatenated, form contexts merged by `mergeFormContexts`.
+A field from a subframe carries its frame in its ref, `<frameId>@<selector>` (`background/frame-refs.ts`); the top frame's refs stay bare, and a fill request is routed back to its frame by that prefix.
+Core knows nothing about frames: it collects and writes one document at a time, and refs are opaque strings everywhere else (panel, plan, outcome, candidates, the mapping prompt's id table).
+A frame that has no content script (a tab open since before the extension loaded) gets the inject-and-retry per frame; a cross-origin frame refuses that, since `activeTab` covers only the top page and same-origin frames, and is skipped; the page is unsupported only when no frame answers.
 
 Uploads run the same pipeline beside the fields: `collectUploads(document)` describes every file input (label, name, accept, section) without making it a field; `resolveUploads(uploads, mapper?)` blocks sensitive ones, maps labels to document kinds by rules (`documents/kinds.ts`), and hands the rest to the `UploadMapper` (the same local model, choosing from the kind vocabulary only); `planFill` with `options.attach` pairs each mapped upload with the newest stored document of that kind the field accepts, offering the others as choices; `applyAssignments` hands the file to the input through a `DataTransfer` and fires `input` and `change`.
 The panel reviews attachments as rows like any other, and the fill counts files apart from fields.
@@ -95,10 +102,13 @@ Saved answers are then keys: `answer.<id>`, described by their question, matched
   Nothing is stored until the user ticks and saves; the candidate rule (`capture/candidates.ts`) is rules-only, never the model.
 - All inference is local. No code path may send page content, profile data, prompts, or metadata to a remote host.
   Engine endpoints are localhost only; adding a permission or host beyond that needs explicit justification.
+  `webNavigation` is there only to list the frames of the tab being scanned or filled; the platform returns frame ids and drops the URLs, the same discipline `ActiveTab` keeps, and nothing in the background ever holds a page URL.
 - Zero telemetry. No analytics, no error reporting services, no update pings beyond what browser stores do themselves.
 - Deterministic first, model second. The extension must work fully with no model configured; the model only reduces the "not recognized" list.
   Heuristics match short labels only: a label shaped like a question (a "?" or more than eight words) is a custom screening question and belongs to the model, whatever keywords or input type it carries; only an explicit `autocomplete` token, or a saved answer whose question is that whole label, outranks that.
   A textarea takes only prose keys (and the street address) and any saved answer; a single-line input never takes a multi-line answer; those rules filter model answers too.
+  The "Country" inside a phone group (a fieldset whose legend or a heading reads phone, mobile, telephone) is the dialing code, which the phone widget derives from the number typed; it never takes the address country (`keyFitsField`), from the rules or the model.
+  A fieldset legend names only the fields inside its fieldset; the nearest preceding heading (h1 to h6) names the rest.
 - File inputs are never fields.
   They are collected apart (`forms/uploads.ts`), mapped to document kinds, never to profile keys, and receive only stored documents the user reviewed; document content never feeds a text field.
   Visibility is not required of a file input (application systems hide the real control behind a styled button); disabled ones are skipped.
@@ -140,6 +150,7 @@ Saved answers are then keys: `answer.<id>`, described by their question, matched
 - Fixtures taken from real sites are anonymized: name them for the kind of form (`ats-application`, `checkout`, `bank-signup`), not the vendor; strip vendor and company names, branding, and tracking ids; keep only the markup that matters (control types, aria, labels, wrappers) and note the pattern it captures in a leading comment.
   The repo is public and fixtures are not an endorsement or a claim about anyone's site.
 - `background/service.test.ts` drives the whole scan-plan-fill round trip, and the read-answers/save-answers round trip, through a fake Platform whose tab is a fixture; extend it when the protocol changes.
+  The fake tab can have subframes (`frames`, a fixture per frame id) and frames that never answer (`deadFrames`); the "frames" block covers a form embedded in a frame, a page split across frames, and a dead frame.
   `fixtures/screening-questions.html` is the capture fixture; `answered.test-util.ts` fills it in the way a person would (live values, not attributes).
 - `demo/index.html` is the designed demo page, not a fixture: it is tested once, by `demo-page.test.ts`, which says which field the rules must map to which key, what stays for the model, and what is refused.
   Change the page and that test together; never point a behavior test at it.

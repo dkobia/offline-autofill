@@ -57,7 +57,7 @@ const KNOWN_INPUT_TYPES = new Set([
   "date", "datetime-local", "month", "week", "time",
   "checkbox", "radio", "hidden", "color", "range",
 ]);
-const HEADING_SELECTOR = "h1, h2, h3, h4, h5, h6, legend";
+const HEADING_SELECTOR = "h1, h2, h3, h4, h5, h6";
 
 export function normalizeText(value: string | null | undefined): string {
   return (value ?? "").replace(/\s+/g, " ").trim();

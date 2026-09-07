@@ -24,6 +24,7 @@ import {
   describeAnswers,
   eligibleFields,
   isProfileEmpty,
+  mergeFormContexts,
   normalizeDocuments,
   normalizeProfile,
   outlineForm,
@@ -70,6 +71,7 @@ import type {
 import type { Platform } from "../platform/types";
 import { normalizeSettings } from "../lib/settings";
 import { EngineError, type EngineClient } from "./engines";
+import { qualifyRef, splitRef } from "./frame-refs";
 
 export const SETTINGS_KEY = "settings";
 export const PROFILE_KEY = "profile";
@@ -366,19 +368,38 @@ export function startBackground({ platform, createEngine, summaryTimeoutMs = SUM
     }
   }
 
-  /** Sends to the tab's content script, injecting it first when the tab predates the extension load. */
-  async function askTab<T>(tabId: number, request: ContentRequest): Promise<T | undefined> {
+  /** Sends to one frame's content script, injecting it first when the frame predates the extension load. */
+  async function askFrame<T>(tabId: number, frameId: number, request: ContentRequest): Promise<T | undefined> {
     try {
-      return (await platform.sendTabMessage(tabId, request)) as T;
+      return (await platform.sendTabMessage(tabId, request, frameId)) as T;
     } catch {
-      // No listener: inject and retry once. Browser-internal pages reject the injection too.
+      // No listener: inject and retry once. Browser-internal pages and cross-origin frames reject the injection too.
     }
     try {
-      await platform.injectContentScript(tabId);
-      return (await platform.sendTabMessage(tabId, request)) as T;
+      await platform.injectContentScript(tabId, frameId);
+      return (await platform.sendTabMessage(tabId, request, frameId)) as T;
     } catch {
       return undefined;
     }
+  }
+
+  /**
+   * A page is the set of its frames: an application form is routinely
+   * embedded from another site. Every frame that answers is heard, top
+   * frame first; a frame without a content script (a tab open since before
+   * the extension loaded, a frame the browser will not let it into) is
+   * skipped, and the caller decides what an empty answer means.
+   */
+  async function askFrames<T>(tabId: number, request: ContentRequest): Promise<FrameAnswer<T>[]> {
+    const frames = await platform.listFrames(tabId);
+    const answers = await Promise.all(frames.map((frameId) => askFrame<T>(tabId, frameId, request).then((answer) => ({ frameId, answer }))));
+    const heard: FrameAnswer<T>[] = [];
+    for (const { frameId, answer } of answers) {
+      if (answer !== undefined) {
+        heard.push({ frameId, answer });
+      }
+    }
+    return heard;
   }
 
   async function scanPage(): Promise<ScanResponse> {
@@ -390,13 +411,14 @@ export function startBackground({ platform, createEngine, summaryTimeoutMs = SUM
     if (isProfileEmpty(profile) && documents.length === 0) {
       return { ok: false, error: "profile-empty", message: "Your profile is empty. Add some details or a document first." };
     }
-    const collected = await askTab<CollectFieldsResponse>(tab.id, { type: "collect-fields" });
-    if (!collected) {
+    const answers = await askFrames<CollectFieldsResponse>(tab.id, { type: "collect-fields" });
+    if (answers.length === 0) {
       return { ok: false, error: "page-unsupported", message: "This page cannot be filled (browser pages and some restricted sites)." };
     }
+    const fields: CollectedField[] = answers.flatMap(({ frameId, answer }) => qualifyAll(frameId, listOf(answer.fields)));
     // A content script loaded before this version answers without uploads.
-    const uploads: UploadField[] = Array.isArray(collected.uploads) ? collected.uploads : [];
-    if (collected.fields.length === 0 && uploads.length === 0) {
+    const uploads: UploadField[] = answers.flatMap(({ frameId, answer }) => qualifyAll(frameId, listOf(answer.uploads)));
+    if (fields.length === 0 && uploads.length === 0) {
       return { ok: false, error: "no-fields", message: "No form fields found on this page." };
     }
 
@@ -424,11 +446,11 @@ export function startBackground({ platform, createEngine, summaryTimeoutMs = SUM
       }
     };
     const [resolved, resolvedUploads] = await Promise.all([
-      withModel((engine) => resolveMappings(collected.fields, engine, { answers: describeAnswers(profile.answers) })),
+      withModel((engine) => resolveMappings(fields, engine, { answers: describeAnswers(profile.answers) })),
       withModel((engine) => resolveUploads(uploads, engine)),
     ]);
 
-    const plan = planFill(collected.fields, resolved.mappings, profile, {
+    const plan = planFill(fields, resolved.mappings, profile, {
       overwrite: settings.overwrite,
       attach: { uploads, mappings: resolvedUploads.mappings, documents },
     });
@@ -436,7 +458,7 @@ export function startBackground({ platform, createEngine, summaryTimeoutMs = SUM
       ok: true,
       tabId: tab.id,
       plan,
-      fieldCount: collected.fields.length - resolved.blocked.length,
+      fieldCount: fields.length - resolved.blocked.length,
       uploadCount: resolvedUploads.mappings.length + resolvedUploads.unmapped.length,
       unmapped: [...resolved.unmapped.map(unmappedOf), ...resolvedUploads.unmapped.map(unmappedUploadOf)],
       blockedCount: resolved.blocked.length + resolvedUploads.blocked.length,
@@ -463,16 +485,17 @@ export function startBackground({ platform, createEngine, summaryTimeoutMs = SUM
     if (!tab) {
       return { ok: false, error: "no-tab", message: "No active tab." };
     }
-    const collected = await askTab<CollectAnswersResponse>(tab.id, { type: "collect-answers" });
-    if (!collected || !Array.isArray(collected.fields)) {
+    const answers = (await askFrames<CollectAnswersResponse>(tab.id, { type: "collect-answers" })).filter(({ answer }) => Array.isArray(answer.fields));
+    if (answers.length === 0) {
       return { ok: false, error: "page-unsupported", message: "This page cannot be read (browser pages and some restricted sites)." };
     }
-    if (collected.fields.length === 0) {
+    const fields = answers.flatMap(({ frameId, answer }) => qualifyAll(frameId, answer.fields));
+    if (fields.length === 0) {
       return { ok: false, error: "no-fields", message: "No form fields found on this page." };
     }
-    const values = Array.isArray(collected.values) ? collected.values : [];
+    const values = answers.flatMap(({ frameId, answer }) => qualifyAll(frameId, listOf(answer.values)));
     const profile = await loadProfile();
-    return { ok: true, tabId: tab.id, candidates: proposeAnswers({ fields: collected.fields, values, profile, planned }) };
+    return { ok: true, tabId: tab.id, candidates: proposeAnswers({ fields, values, profile, planned }) };
   }
 
   /** Saves the ticked candidates into the stored profile, read fresh under the lock so no other save is lost. */
@@ -494,21 +517,25 @@ export function startBackground({ platform, createEngine, summaryTimeoutMs = SUM
     if (!tab) {
       return { ok: false, error: "no-tab", message: "No active tab." };
     }
-    const described = await askTab<DescribeFormResponse>(tab.id, { type: "describe-form" });
-    if (!described) {
+    const answers = (await askFrames<DescribeFormResponse>(tab.id, { type: "describe-form" })).filter(({ answer }) => typeof answer.context === "object" && answer.context !== null);
+    if (answers.length === 0) {
       return { ok: false, error: "page-unsupported", message: "This page cannot be read (browser pages and some restricted sites)." };
     }
+    const fields = answers.flatMap(({ frameId, answer }) => qualifyAll(frameId, listOf(answer.fields)));
+    const contexts = answers.map(({ answer }) => answer.context);
     // A form of uploads alone is still a form. A content script from before
     // this version answers without blockedUploads and with every upload label
     // in uploads, judged by nothing; those are left out rather than trusted.
-    const context = legacySafeContext(described.context);
+    // On a careers page the top frame holds the job description and the
+    // embedded frame the form; the summary reads both as one page.
+    const context = mergeFormContexts(contexts.map(legacySafeContext));
     // Whether the page has any control at all is judged on what was sent,
     // legacy labels included; only what is said about them is withheld.
-    const hasUploads = (described.context.uploads?.length ?? 0) > 0 || (described.context.blockedUploads?.length ?? 0) > 0;
-    if (described.fields.length === 0 && !hasUploads) {
+    const hasUploads = contexts.some((sent) => (sent.uploads?.length ?? 0) > 0 || (sent.blockedUploads?.length ?? 0) > 0);
+    if (fields.length === 0 && !hasUploads) {
       return { ok: false, error: "no-fields", message: "No form fields found on this page." };
     }
-    const { eligible, blocked } = eligibleFields(described.fields);
+    const { eligible, blocked } = eligibleFields(fields);
     const outline = outlineForm(eligible, blocked, context);
     const response: DescribeResponse = { ok: true, tabId: tab.id, outline, usedModel: false };
 
@@ -572,29 +599,58 @@ export function startBackground({ platform, createEngine, summaryTimeoutMs = SUM
   /**
    * Values go to the tab as they are; documents are looked up by id and go
    * as files. A document removed since the scan fails its request here,
-   * before the tab is asked.
+   * before the tab is asked. Each frame is written on its own, with the
+   * refs as its document knows them, one frame after another so the
+   * outcome keeps the plan's order.
    */
   async function fillPage(tabId: number, requests: FillRequest[]): Promise<FillResponse> {
-    const writes: WriteRequest[] = [];
+    const byFrame = new Map<number, WriteRequest[]>();
     const failed: FillResponse["outcome"]["failed"] = [];
     for (const request of requests) {
-      if (!("documentId" in request)) {
-        writes.push(request);
+      const { frameId, ref } = splitRef(request.ref);
+      let write: WriteRequest;
+      if ("documentId" in request) {
+        const file = await loadDocumentFile(request.documentId);
+        if (!file) {
+          failed.push({ ref: request.ref, reason: "unresolvable" });
+          continue;
+        }
+        write = { ref, file };
+      } else {
+        write = { ref, value: request.value };
+      }
+      const writes = byFrame.get(frameId) ?? [];
+      writes.push(write);
+      byFrame.set(frameId, writes);
+    }
+    const filled: string[] = [];
+    for (const [frameId, writes] of byFrame) {
+      const applied = await askFrame<ApplyFillResponse>(tabId, frameId, { type: "apply-fill", requests: writes });
+      if (!applied) {
+        failed.push(...writes.map((w) => ({ ref: qualifyRef(frameId, w.ref), reason: "unresolvable" as const })));
         continue;
       }
-      const file = await loadDocumentFile(request.documentId);
-      if (file) {
-        writes.push({ ref: request.ref, file });
-      } else {
-        failed.push({ ref: request.ref, reason: "unresolvable" });
-      }
+      filled.push(...applied.outcome.filled.map((ref) => qualifyRef(frameId, ref)));
+      failed.push(...applied.outcome.failed.map((failure) => ({ ...failure, ref: qualifyRef(frameId, failure.ref) })));
     }
-    const applied = writes.length > 0 ? await askTab<ApplyFillResponse>(tabId, { type: "apply-fill", requests: writes }) : { outcome: { filled: [], failed: [] } };
-    if (!applied) {
-      return { outcome: { filled: [], failed: [...failed, ...writes.map((w) => ({ ref: w.ref, reason: "unresolvable" as const }))] } };
-    }
-    return { outcome: { filled: applied.outcome.filled, failed: [...failed, ...applied.outcome.failed] } };
+    return { outcome: { filled, failed } };
   }
+}
+
+/** What one frame's content script answered. */
+interface FrameAnswer<T> {
+  frameId: number;
+  answer: T;
+}
+
+/** An array as sent, or nothing: a malformed or older answer is not trusted for what it lacks. */
+function listOf<T>(value: T[] | undefined): T[] {
+  return Array.isArray(value) ? value : [];
+}
+
+/** The items as the rest of the extension refers to them: by a ref that names the frame. */
+function qualifyAll<T extends { ref: string }>(frameId: number, items: T[]): T[] {
+  return items.map((item) => ({ ...item, ref: qualifyRef(frameId, item.ref) }));
 }
 
 /**

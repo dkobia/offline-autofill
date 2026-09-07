@@ -162,7 +162,7 @@ export {
 
 // Form summary: what the form is, by rules (outline) and, optionally, by the
 // model (prompt + parse). Neither path ever carries a profile value.
-export { collectFormContext, type FormContext } from "./summary/context";
+export { collectFormContext, mergeFormContexts, type FormContext } from "./summary/context";
 export { outlineForm, blockReasonPhrase, type FormOutline } from "./summary/outline";
 export { buildSummaryPrompt, MAX_PROMPT_FIELDS, type SummaryPrompt } from "./summary/prompt";
 export { parseSummaryResponse } from "./summary/parse";

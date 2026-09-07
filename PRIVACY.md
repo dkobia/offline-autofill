@@ -62,6 +62,9 @@ In addition, the address you configure is checked against a list of local hostna
 ## Permissions
 
 - **`activeTab` and `scripting`** let the extension read the form fields of the page you asked it to fill, write your reviewed values into them, and read what you typed when you click **Save answers**.
+- **`webNavigation`** lets the extension list the frames of that one page, because application forms are often embedded from another site (a company careers page showing a Greenhouse or Lever form).
+  It is used only when you scan or fill, only for the tab you are looking at, and only to find the frames to ask; the addresses it returns are not kept, shown, or sent anywhere.
+  Chrome describes this permission as "Read your browsing history"; the extension reads no history.
 - **`storage`** keeps your profile, documents, and settings, as described above.
 - **`unlimitedStorage`** lets the stored documents exceed the browser's default 10 MB allowance for extension storage.
 - **`sidePanel`** displays the extension's own interface. It does not read page content.

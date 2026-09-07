@@ -57,6 +57,9 @@ flowchart TD
     plan --> review -->|ticked values| fill --> page
 ```
 
+A page is scanned across all of its frames, so an application form embedded from another site (a Greenhouse or Lever
+form on a company careers page) is found and filled like any other.
+
 Collection, mapping, planning, and filling are pure logic in `packages/core`, testable against static HTML fixtures
 without a browser. The engines are thin HTTP clients in the extension that implement the `FieldMapper` and
 `FormSummarizer` contracts core defines, with the model's answer constrained to a JSON schema. Nothing in any code path sends page content, profile

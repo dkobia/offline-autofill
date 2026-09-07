@@ -291,13 +291,19 @@ function blurReal(input: HTMLInputElement): void {
   }
 }
 
-/** Puts a combobox back the way it was after a pick failed: no stray search text, list closed, focus released. */
-function retreat(input: HTMLInputElement): void {
+/**
+ * Puts a combobox back the way it was after a pick failed: no stray search
+ * text, list closed, focus released. Escape goes only to a list that is
+ * still open: react-select answers Escape on a closed, unfocused widget by
+ * opening it, and the blur that follows does nothing to a widget that
+ * already let go of focus, so the list would stay open behind the user.
+ */
+function retreat(input: HTMLInputElement, listOpen: () => boolean): void {
   assign(input, "value", "");
   fire(input, ["input"]);
   const view = input.ownerDocument.defaultView as (Window & { KeyboardEvent?: typeof KeyboardEvent }) | null;
   const Ctor = view?.KeyboardEvent ?? (globalThis as { KeyboardEvent?: typeof KeyboardEvent }).KeyboardEvent;
-  if (Ctor) {
+  if (Ctor && listOpen()) {
     for (const name of ["keydown", "keyup"]) {
       input.dispatchEvent(new Ctor(name, { key: "Escape", bubbles: true, cancelable: true }));
     }
@@ -320,6 +326,7 @@ interface OptionCandidate {
  */
 async function writeCombobox(input: HTMLInputElement, value: string, timing: Required<ApplyOptions>): Promise<WriteFailure | undefined> {
   const before = new Set(allOptions(input.ownerDocument));
+  const listOpen = () => renderedOptions(input, before, timing.isVisible).length > 0;
   click(input);
   focusReal(input);
   assign(input, "value", value);
@@ -336,18 +343,18 @@ async function writeCombobox(input: HTMLInputElement, value: string, timing: Req
     return hit !== undefined;
   }, timing.optionsTimeoutMs);
   if (!hit) {
-    retreat(input);
+    retreat(input, listOpen);
     return "no-option-match";
   }
   // The wait may have been long; the page may have disabled or hidden the widget meanwhile.
   const blocked = eligibility(input, timing.isVisible);
   if (blocked) {
-    retreat(input);
+    retreat(input, listOpen);
     return blocked;
   }
 
   click(hit.element);
-  const closed = await waitUntil(() => renderedOptions(input, before, timing.isVisible).length === 0, timing.closeTimeoutMs);
+  const closed = await waitUntil(() => !listOpen(), timing.closeTimeoutMs);
 
   // Other widgets leave the chosen label in the input itself; react-select
   // clears the search text and shows the choice beside the input, and that
@@ -364,7 +371,7 @@ async function writeCombobox(input: HTMLInputElement, value: string, timing: Req
       }
     }
   }
-  retreat(input);
+  retreat(input, listOpen);
   return "readback-mismatch";
 }
 

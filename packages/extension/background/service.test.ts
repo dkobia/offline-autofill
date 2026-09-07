@@ -7,6 +7,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   applyAssignments,
+  buildSummaryPrompt,
   collectFields,
   collectFormContext,
   collectUploads,
@@ -37,6 +38,7 @@ import { parseHTML } from "linkedom";
 import { describe, expect, it, vi } from "vitest";
 import type { MessageHandler, Platform } from "../platform/types";
 import { EngineError, type EngineClient } from "./engines";
+import { splitRef } from "./frame-refs";
 import { startBackground } from "./service";
 
 const fixturesDir = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "fixtures");
@@ -61,6 +63,8 @@ interface Harness {
   failRemoves: Set<string>;
   /** The fake platform, for tests that swap one method. */
   platform: Platform;
+  /** The documents of the tab's subframes, by frame id. */
+  frames: Map<number, Document>;
 }
 
 interface HarnessOptions {
@@ -68,6 +72,10 @@ interface HarnessOptions {
   summaryTimeoutMs?: number;
   /** Storage keys whose writes fail, to exercise rollback. */
   failWrites?: Set<string>;
+  /** Fixtures for the tab's subframes, by frame id; the top frame (0) is `fixture`. */
+  frames?: Record<number, string>;
+  /** Frames the browser lists but that never answer (no content script, no access). */
+  deadFrames?: number[];
 }
 
 function harness(fixture: string, engine?: Partial<EngineClient>, options: HarnessOptions = {}): Harness {
@@ -77,6 +85,8 @@ function harness(fixture: string, engine?: Partial<EngineClient>, options: Harne
   const reads = { count: 0 };
   const failWrites = options.failWrites ?? new Set<string>();
   const failRemoves = new Set<string>();
+  const frames = new Map<number, Document>(Object.entries(options.frames ?? {}).map(([id, source]) => [Number(id), loadFixture(source)]));
+  const deadFrames = new Set(options.deadFrames ?? []);
   let handler: MessageHandler | undefined;
   const platform: Platform = {
     name: "chrome",
@@ -94,25 +104,30 @@ function harness(fixture: string, engine?: Partial<EngineClient>, options: Harne
       storage.delete(key);
     },
     sendMessage: async () => undefined,
-    sendTabMessage: async (_tabId, message) => {
+    sendTabMessage: async (_tabId, message, frameId) => {
+      const target = frameId === 0 ? document : frames.get(frameId);
+      if (!target || deadFrames.has(frameId)) {
+        throw new Error("Could not establish connection. Receiving end does not exist.");
+      }
       const request = message as ContentRequest;
       switch (request.type) {
         case "collect-fields":
-          return { fields: collectFields(document), uploads: collectUploads(document) };
+          return { fields: collectFields(target), uploads: collectUploads(target) };
         case "describe-form":
-          return { fields: collectFields(document), context: collectFormContext(document) };
+          return { fields: collectFields(target), context: collectFormContext(target) };
         case "apply-fill":
           writes.push(...request.requests);
-          return { outcome: await applyAssignments(document, request.requests) };
+          return { outcome: await applyAssignments(target, request.requests) };
         case "collect-answers":
           reads.count += 1;
-          return collectAnswers(document);
+          return collectAnswers(target);
         default:
           return undefined;
       }
     },
     onMessage: (h) => void (handler = h),
     getActiveTab: async () => ({ id: 7, complete: true }),
+    listFrames: async () => [0, ...new Set([...frames.keys(), ...deadFrames])].sort((a, b) => a - b),
     injectContentScript: async () => undefined,
     initPanelBehavior: () => undefined,
   };
@@ -139,6 +154,7 @@ function harness(fixture: string, engine?: Partial<EngineClient>, options: Harne
     failWrites,
     failRemoves,
     platform,
+    frames,
   };
 }
 
@@ -542,8 +558,8 @@ describe("documents (round 2)", () => {
     // The old collector: every label in uploads, no blockedUploads at all.
     const legacy = { title: "Onboarding", headings: [], intro: "", buttons: [], uploads: ["Resume", "Passport scan"] };
     const original = h.platform.sendTabMessage;
-    h.platform.sendTabMessage = async (tabId, message) =>
-      (message as ContentRequest).type === "describe-form" ? { fields: collectFields(h.document), context: legacy } : original(tabId, message);
+    h.platform.sendTabMessage = async (tabId, message, frameId) =>
+      (message as ContentRequest).type === "describe-form" ? { fields: collectFields(h.document), context: legacy } : original(tabId, message, frameId);
     await h.send({ type: "save-settings", settings });
     const result = (await h.send({ type: "describe-page" })) as DescribeResponse;
     if (!result.ok) throw new Error(result.message);
@@ -646,8 +662,8 @@ describe("documents (round 2)", () => {
     const h = harness("contact-form.html");
     const legacy = { title: "Documents", headings: [], intro: "", buttons: [], uploads: ["Resume"] };
     const original = h.platform.sendTabMessage;
-    h.platform.sendTabMessage = async (tabId, message) =>
-      (message as ContentRequest).type === "describe-form" ? { fields: [], context: legacy } : original(tabId, message);
+    h.platform.sendTabMessage = async (tabId, message, frameId) =>
+      (message as ContentRequest).type === "describe-form" ? { fields: [], context: legacy } : original(tabId, message, frameId);
     await h.send({ type: "save-settings", settings: { ...settings, useModel: false } });
     const result = (await h.send({ type: "describe-page" })) as DescribeResponse;
     expect(result).toMatchObject({ ok: true });
@@ -843,5 +859,125 @@ describe("saved answers after a fill", () => {
     const read = (await h.send({ type: "read-answers", planned })) as ReadAnswersResponse;
     if (!read.ok) throw new Error(read.message);
     expect(read.candidates.map((c) => [c.question, c.value])).toEqual([["Preferred pronouns", "she/her"]]);
+  });
+});
+
+describe("frames", () => {
+  // A careers page: the job description in the top frame, the application
+  // form embedded from the applicant tracking system in a frame of its own.
+  const careers =
+    '<html><head><title>Careers at Acme</title></head><body><h1>Staff Software Engineer</h1><p>Lead the dashboard team.</p>' +
+    '<button type="button">Share</button><iframe src="https://ats.example/embed/job_app?for=acme"></iframe></body></html>';
+
+  function inFrame(h: Harness, ref: string): HTMLInputElement {
+    const { frameId, ref: local } = splitRef(ref);
+    const target = frameId === 0 ? h.document : h.frames.get(frameId)!;
+    return target.querySelector(local) as HTMLInputElement;
+  }
+
+  it("finds the application form inside an embedded frame and fills it there", async () => {
+    const h = harness(careers, undefined, { frames: { 42: "job-application.html" } });
+    await h.send({ type: "save-profile", profile });
+    await h.send({ type: "save-settings", settings });
+    const scan = (await h.send({ type: "scan-page" })) as ScanResponse;
+    if (!scan.ok) throw new Error(scan.message);
+    expect(scan.fieldCount).toBeGreaterThan(0);
+    expect(scan.plan.assignments.length).toBeGreaterThan(0);
+    expect(scan.plan.assignments.every((a) => a.ref.startsWith("42@"))).toBe(true);
+    expect(scan.unmapped.every((u) => u.ref.startsWith("42@"))).toBe(true);
+    const first = scan.plan.assignments.find((a) => a.key === "identity.firstName")!;
+
+    const fill = (await h.send({
+      type: "fill-page",
+      tabId: scan.tabId,
+      requests: scan.plan.assignments.map((a) => ({ ref: a.ref, value: a.value })),
+    })) as FillResponse;
+    expect(fill.outcome.failed).toEqual([]);
+    expect(fill.outcome.filled).toEqual(scan.plan.assignments.map((a) => a.ref));
+    expect(inFrame(h, first.ref).value).toBe("Ada");
+    // The frame's document was written with its own refs, not the qualified ones.
+    expect(h.writes.every((w) => !w.ref.includes("@"))).toBe(true);
+    expect(h.document.querySelector("input")).toBeNull();
+  });
+
+  it("describes the page from all of its frames without a frame ref reaching the model", async () => {
+    const h = harness(careers, { summarizeForm: vi.fn(async () => summary) }, { frames: { 42: "job-application.html" } });
+    await h.send({ type: "save-settings", settings });
+    const result = (await h.send({ type: "describe-page" })) as DescribeResponse;
+    if (!result.ok) throw new Error(result.message);
+    expect(result.outline.sections).toEqual(["About you", "Education", "Work history", "Anything else"]);
+    expect(result.outline.submit).toBe("Submit application");
+    expect(result.summary).toEqual(summary);
+    const [input] = (h.engine.summarizeForm as ReturnType<typeof vi.fn>).mock.calls[0]! as [SummaryInput];
+    expect(input.context.title).toBe("Careers at Acme");
+    expect(input.context.headings.slice(0, 2)).toEqual(["Staff Software Engineer", "Application form"]);
+    expect(input.context.intro.startsWith("Lead the dashboard team.")).toBe(true);
+    expect(input.context.buttons).toContain("Share");
+    const prompt = buildSummaryPrompt(input);
+    expect(`${prompt.system}\n${prompt.user}`).not.toContain("42@");
+  });
+
+  it("reads answers typed inside a frame", async () => {
+    const h = harness(careers, undefined, { frames: { 42: "screening-questions.html" } });
+    await h.send({ type: "save-profile", profile });
+    (h.frames.get(42)!.querySelector("#linkedin") as HTMLInputElement).value = "https://linkedin.com/in/ada";
+    const read = (await h.send({ type: "read-answers" })) as ReadAnswersResponse;
+    if (!read.ok) throw new Error(read.message);
+    expect(read.candidates.map((c) => [c.ref, c.question, c.value])).toEqual([["42@#linkedin", "LinkedIn profile", "https://linkedin.com/in/ada"]]);
+  });
+
+  it("fills a page split across frames in one request, top frame first", async () => {
+    const h = harness("contact-form.html", undefined, { frames: { 42: "job-application.html" } });
+    await h.send({ type: "save-profile", profile });
+    await h.send({ type: "save-settings", settings: { ...settings, useModel: false } });
+    const scan = (await h.send({ type: "scan-page" })) as ScanResponse;
+    if (!scan.ok) throw new Error(scan.message);
+    const refs = scan.plan.assignments.map((a) => a.ref);
+    expect(refs).toContain("#given");
+    expect(refs.some((ref) => ref.startsWith("42@"))).toBe(true);
+    expect(refs.findIndex((ref) => ref.startsWith("42@"))).toBeGreaterThan(refs.indexOf("#given"));
+
+    const fill = (await h.send({
+      type: "fill-page",
+      tabId: scan.tabId,
+      requests: scan.plan.assignments.map((a) => ({ ref: a.ref, value: a.value })),
+    })) as FillResponse;
+    expect(fill.outcome.failed).toEqual([]);
+    expect(fill.outcome.filled).toEqual(refs);
+    expect((h.document.getElementById("given") as HTMLInputElement).value).toBe("Ada");
+    const embedded = scan.plan.assignments.find((a) => a.ref.startsWith("42@") && a.key === "identity.firstName")!;
+    expect(inFrame(h, embedded.ref).value).toBe("Ada");
+  });
+
+  it("skips a frame that never answers and fails only the writes aimed at it", async () => {
+    const h = harness(careers, undefined, { frames: { 42: "job-application.html" }, deadFrames: [9] });
+    await h.send({ type: "save-profile", profile });
+    await h.send({ type: "save-settings", settings: { ...settings, useModel: false } });
+    const scan = (await h.send({ type: "scan-page" })) as ScanResponse;
+    if (!scan.ok) throw new Error(scan.message);
+    const [first] = scan.plan.assignments;
+    const fill = (await h.send({
+      type: "fill-page",
+      tabId: scan.tabId,
+      requests: [
+        { ref: first!.ref, value: first!.value },
+        { ref: "9@#gone", value: "x" },
+      ],
+    })) as FillResponse;
+    expect(fill.outcome.filled).toEqual([first!.ref]);
+    expect(fill.outcome.failed).toEqual([{ ref: "9@#gone", reason: "unresolvable" }]);
+  });
+
+  it("still finds the form when only the embedded frame answers, and gives up when none does", async () => {
+    const embedOnly = harness(careers, undefined, { frames: { 42: "job-application.html" }, deadFrames: [0] });
+    await embedOnly.send({ type: "save-profile", profile });
+    await embedOnly.send({ type: "save-settings", settings: { ...settings, useModel: false } });
+    expect(await embedOnly.send({ type: "scan-page" })).toMatchObject({ ok: true });
+
+    const none = harness(careers, undefined, { deadFrames: [0] });
+    await none.send({ type: "save-profile", profile });
+    expect(await none.send({ type: "scan-page" })).toMatchObject({ ok: false, error: "page-unsupported" });
+    expect(await none.send({ type: "describe-page" })).toMatchObject({ ok: false, error: "page-unsupported" });
+    expect(await none.send({ type: "read-answers" })).toMatchObject({ ok: false, error: "page-unsupported" });
   });
 });
