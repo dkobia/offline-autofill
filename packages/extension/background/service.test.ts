@@ -36,7 +36,7 @@ import type {
 } from "@offline-autofill/shared";
 import { parseHTML } from "linkedom";
 import { describe, expect, it, vi } from "vitest";
-import type { MessageHandler, Platform } from "../platform/types";
+import type { BuiltInModel, MessageHandler, Platform } from "../platform/types";
 import { EngineError, type EngineClient } from "./engines";
 import { splitRef } from "./frame-refs";
 import { startBackground } from "./service";
@@ -69,6 +69,8 @@ interface Harness {
 
 interface HarnessOptions {
   createEngine?: (settings: Settings) => EngineClient;
+  /** The browser's built-in model, when this fake browser has one; the fake engine still answers the calls. */
+  builtInModel?: BuiltInModel;
   summaryTimeoutMs?: number;
   /** Storage keys whose writes fail, to exercise rollback. */
   failWrites?: Set<string>;
@@ -90,6 +92,7 @@ function harness(fixture: string, engine?: Partial<EngineClient>, options: Harne
   let handler: MessageHandler | undefined;
   const platform: Platform = {
     name: "chrome",
+    builtInModel: options.builtInModel,
     getSetting: async (key, fallback) => (storage.has(key) ? (storage.get(key) as never) : fallback),
     setSetting: async (key, value) => {
       if (failWrites.has(key)) {
@@ -199,6 +202,26 @@ describe("background service", () => {
     await h.send({ type: "save-profile", profile: { identity: { firstName: " Ada ", bogus: "x" } } });
     const { profile: stored } = (await h.send({ type: "get-profile" })) as GetProfileResponse;
     expect(stored.identity).toEqual({ firstName: "Ada" });
+  });
+
+  it("defaults to the browser's built-in model where there is one, and asks it without a model name", async () => {
+    const builtInModel: BuiltInModel = { availability: async () => "available", create: vi.fn() };
+    const h = harness("job-application.html", undefined, { builtInModel });
+    const { settings: loaded } = (await h.send({ type: "get-settings" })) as { settings: Settings };
+    expect(loaded).toMatchObject({ engine: "builtin", model: "", useModel: true });
+    await h.send({ type: "save-profile", profile });
+    const result = (await h.send({ type: "scan-page" })) as ScanResponse;
+    expect(result).toMatchObject({ ok: true, usedModel: true });
+    expect(h.engine.mapFields).toHaveBeenCalled();
+
+    // A browser without one keeps Ollama, and no model name means no model call.
+    const plain = harness("job-application.html");
+    const { settings: plainLoaded } = (await plain.send({ type: "get-settings" })) as { settings: Settings };
+    expect(plainLoaded).toMatchObject({ engine: "ollama", model: "" });
+    await plain.send({ type: "save-profile", profile });
+    const plainResult = (await plain.send({ type: "scan-page" })) as ScanResponse;
+    expect(plainResult).toMatchObject({ ok: true, usedModel: false });
+    expect(plain.engine.mapFields).not.toHaveBeenCalled();
   });
 
   it("refuses to scan with an empty profile", async () => {

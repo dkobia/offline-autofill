@@ -135,6 +135,8 @@ function modelNote(error: { code: EngineErrorCode; message: string }): string {
       return "The local model server blocks this extension, so this is what the built-in rules found.";
     case "model-missing":
       return "The selected model isn’t available on the server, so this is what the built-in rules found.";
+    case "model-unavailable":
+      return `${error.message}, so this is what the built-in rules found.`;
     case "engine-error":
       return `The local model failed (${error.message}), so this is what the built-in rules found.`;
   }

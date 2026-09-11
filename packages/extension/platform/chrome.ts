@@ -1,8 +1,14 @@
+import { builtInModelOf } from "./built-in-model";
 import { pageFrames } from "./frames";
 import type { ActiveTab, MessageHandler, Platform } from "./types";
 
 export const platform: Platform = {
   name: "chrome",
+
+  // The Prompt API's LanguageModel global exists in the service worker and
+  // in extension pages from Chrome 138; an older Chrome has no global and
+  // reports the model as unavailable.
+  builtInModel: builtInModelOf(typeof LanguageModel === "undefined" ? undefined : LanguageModel),
 
   async getSetting<T>(key: string, fallback: T): Promise<T> {
     const stored = await chrome.storage.local.get(key);

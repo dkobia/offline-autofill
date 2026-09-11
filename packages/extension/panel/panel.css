@@ -782,6 +782,11 @@ select.plan-file {
   grid-column: auto;
 }
 
+/* A group of fields that hides as one (the server's address and model); its children stay grid items of the card. */
+.server-settings {
+  display: contents;
+}
+
 @container (max-width: 279px) {
   .card .field.half {
     grid-column: 1 / -1;

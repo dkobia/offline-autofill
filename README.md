@@ -9,9 +9,10 @@
 Offline Autofill is a zero-telemetry browser extension that fills web forms with your details: name, contact info,
 addresses, education, and work history, and attaches your documents (resume, cover letter, transcript, photo) where a
 form asks for them. Your profile and documents are stored only in your browser. Field recognition uses built-in rules
-first and, for anything they don't recognize, a local model you already run - Ollama, LM Studio, llama.cpp server, or
-any OpenAI-compatible localhost endpoint. The model sees the form's structure, the page's text, and the questions you
-have saved, never a value from your profile, never an answer, and never a document.
+first and, for anything they don't recognize, an on-device model: Chrome's built-in Gemini Nano, or a local server you
+already run - Ollama, LM Studio, llama.cpp server, or any OpenAI-compatible localhost endpoint. The model sees the
+form's structure, the page's text, and the questions you have saved, never a value from your profile, never an answer,
+and never a document.
 
 ## Why
 
@@ -46,7 +47,7 @@ flowchart TD
     page[Page DOM]
     collect["Collect fields and uploads<br/><i>labels, options, visibility</i>"]
     rules["Built-in rules<br/><i>autocomplete, labels, names</i>"]
-    model["Local model<br/>Ollama · LM Studio · llama.cpp<br/><i>sees labels, page text, and saved questions, never profile values, answers, or documents</i>"]
+    model["On-device model<br/>Chrome built-in · Ollama · LM Studio · llama.cpp<br/><i>sees labels, page text, and saved questions, never profile values, answers, or documents</i>"]
     plan["Plan<br/><i>profile values matched to fields, documents to uploads</i>"]
     review[Review in panel]
     fill[Fill and attach]
@@ -79,14 +80,21 @@ flow, saved answers, and settings. Not yet done, in rough order:
 
 ## Backends
 
-| Backend       | Prerequisites                                                  | Typical models                   |
-|:--------------|:---------------------------------------------------------------|:---------------------------------|
-| **Ollama**    | [Ollama](https://ollama.com) running locally                   | `llama3.2`, `qwen2.5:7b`, `phi3` |
-| **LM Studio** | [LM Studio](https://lmstudio.ai) with its local server enabled | any loaded chat model            |
-| **llama.cpp** | `llama-server` on a localhost port                             | any GGUF chat model              |
+| Backend                | Prerequisites                                                                   | Typical models                   |
+|:-----------------------|:--------------------------------------------------------------------------------|:---------------------------------|
+| **Chrome built-in**    | Chrome 138 or newer on a desktop that meets Chrome's requirements (see below)   | Gemini Nano                      |
+| **Ollama**             | [Ollama](https://ollama.com) running locally                                    | `llama3.2`, `qwen2.5:7b`, `phi3` |
+| **LM Studio**          | [LM Studio](https://lmstudio.ai) with its local server enabled                  | any loaded chat model            |
+| **llama.cpp**          | `llama-server` on a localhost port                                              | any GGUF chat model              |
 
-The mapping task is small (a list of labels in, a list of keys out), so 3B to 8B models do well. The form summary
-sends the model the page title, headings, intro text, button labels, and field labels - never your profile.
+Chrome's built-in model is the default on Chrome: nothing to install or run. Chrome downloads Gemini Nano once (a few
+GB) when you click **Download model** in the panel's status, and keeps it for every site and extension that uses it.
+It needs about 22 GB of free disk space and either a GPU with more than 4 GB of memory or 16 GB of RAM with 4 cores;
+on a machine below that, the panel says so and you can pick a local server instead. Firefox has no built-in model.
+
+The mapping task is small (a list of labels in, a list of keys out), so Gemini Nano and 3B to 8B models do well. The
+form summary sends the model the page title, headings, intro text, button labels, and field labels - never your
+profile.
 
 ## Try it
 
@@ -116,7 +124,9 @@ page is real and nothing entered there is sent anywhere.
 3. Open the panel, go to **Profile**, enter your details, and save. Under **Documents**, add a resume or anything
    else forms ask you to attach (up to 10 MB each).
 
-4. Optionally start a local runtime. Ollama must be told to accept browser-extension origins:
+4. Optionally set up a model. On Chrome the built-in model is selected already: click **Download model** in the
+   panel's status the first time. To use a local server instead, start it and pick it under **Settings**. Ollama must
+   be told to accept browser-extension origins:
 
    ```sh
    OLLAMA_ORIGINS="chrome-extension://*,moz-extension://*" ollama serve
@@ -124,7 +134,7 @@ page is real and nothing entered there is sent anywhere.
    ```
 
    For LM Studio, start the server in the Developer tab; for llama.cpp, run `llama-server -m <model.gguf> --port 8080`.
-   Pick the engine and model under **Settings**. Without a runtime the extension still works with its built-in rules.
+   Without a model the extension still works with its built-in rules.
 
 5. On a page with a form, click **Scan this page**, review the values and attachments, and click **Fill**.
 

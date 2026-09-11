@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Offline Autofill",
-  "version": "0.2.0",
-  "description": "Fill forms from a profile that never leaves your device. Local models only (Ollama, LM Studio, llama.cpp). No cloud, no telemetry.",
+  "version": "0.3.0",
+  "description": "Fill forms from a profile that never leaves your device. On-device models only (Chrome built-in, Ollama, LM Studio). No cloud.",
   "permissions": [
     "storage",
     "unlimitedStorage",

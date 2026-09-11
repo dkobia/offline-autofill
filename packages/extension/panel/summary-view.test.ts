@@ -58,6 +58,13 @@ describe("summaryView", () => {
       "A form with 14 fillable fields across About you, Education, Work history, and Anything else, submitted with “Submit application”.",
     );
 
+    const unavailable = summaryView({
+      kind: "ready",
+      response: { ok: true, tabId: 1, outline, usedModel: false, modelError: { code: "model-unavailable", message: "Chrome’s built-in model isn’t downloaded yet" } },
+    });
+    expect(unavailable.tag).toBe("rules");
+    expect(unavailable.note).toBe("Chrome’s built-in model isn’t downloaded yet, so this is what the built-in rules found.");
+
     const silent = summaryView({ kind: "ready", response: { ok: true, tabId: 1, outline, usedModel: true } });
     expect(silent.note).toBe("The model didn’t return a usable description.");
 

@@ -37,14 +37,17 @@ export type {
   WriteRequest,
 } from "@offline-autofill/core";
 
-/** Which local runtime the extension talks to. */
-export type EngineKind = "ollama" | "lmstudio" | "llamacpp" | "custom";
+/**
+ * Which on-device model the extension talks to: the browser's own built-in
+ * model (Chrome's Gemini Nano, through the Prompt API) or a local server.
+ */
+export type EngineKind = "builtin" | "ollama" | "lmstudio" | "llamacpp" | "custom";
 
 export interface Settings {
   engine: EngineKind;
-  /** Base URL of the local server, e.g. "http://localhost:11434". Localhost only. */
+  /** Base URL of the local server, e.g. "http://localhost:11434". Localhost only. Unused by the built-in model. */
   endpoint: string;
-  /** Model identifier as the server knows it, e.g. "llama3.2" or "qwen2.5:7b". */
+  /** Model identifier as the server knows it, e.g. "llama3.2" or "qwen2.5:7b". Unused by the built-in model. */
   model: string;
   /** Ask the local model about fields the heuristics could not map. Off means heuristics only. */
   useModel: boolean;
@@ -54,15 +57,27 @@ export interface Settings {
   summary: boolean;
 }
 
-/** Result of probing the configured engine endpoint. */
+/** Result of probing the configured engine: a local server's endpoint, or the browser's built-in model. */
 export type EngineStatus =
   | { state: "ok"; models: string[] }
   | { state: "unreachable"; detail?: string }
   /** Reachable but the server rejects browser-extension origins (Ollama without OLLAMA_ORIGINS). */
   | { state: "forbidden" }
+  /** The browser can run its built-in model but has not downloaded it yet; a user gesture in the panel starts that. */
+  | { state: "downloadable" }
+  /** The browser is downloading its built-in model; `progress` (0 to 1) is known only to the panel that started it. */
+  | { state: "downloading"; progress?: number }
+  /** The browser has no built-in model, or this device falls below its requirements. */
+  | { state: "unsupported" }
   | { state: "error"; detail: string };
 
-export type EngineErrorCode = "engine-unreachable" | "origin-forbidden" | "model-missing" | "engine-error";
+export type EngineErrorCode =
+  | "engine-unreachable"
+  | "origin-forbidden"
+  | "model-missing"
+  /** The browser's built-in model is not downloaded, still downloading, or not supported on this device. */
+  | "model-unavailable"
+  | "engine-error";
 
 // ---- Panel -> background one-shot messages ------------------------------------------
 

@@ -111,6 +111,8 @@ export function modelErrorText(error: { code: EngineErrorCode; message: string }
       return "The local model server blocks this extension (see the status above), so only the built-in rules were used.";
     case "model-missing":
       return "The selected model isn’t available on the server, so only the built-in rules were used.";
+    case "model-unavailable":
+      return `${error.message}, so only the built-in rules were used.`;
     case "engine-error":
       return `The local model failed (${error.message}), so only the built-in rules were used.`;
   }

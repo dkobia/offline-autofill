@@ -3,7 +3,7 @@
 ## What Offline Autofill is
 
 Offline Autofill is a browser extension that fills web forms from a profile stored only on the user's device: identity, contact details, addresses, education, and employment history, plus documents (resume, cover letter, transcript, photo) it attaches to a form's upload fields.
-Field recognition runs deterministic rules first and consults a local model (Ollama, LM Studio, llama.cpp server, other localhost endpoints) only for fields the rules cannot place.
+Field recognition runs deterministic rules first and consults an on-device model (the browser's built-in model on Chrome, or a local server: Ollama, LM Studio, llama.cpp server, other localhost endpoints) only for fields the rules cannot place.
 The model sees field labels, never profile values or documents.
 No profile data, no document, no page content, and no telemetry ever leaves the device.
 
@@ -24,7 +24,7 @@ packages/
       capture/     # what the user typed by hand and asked to keep: candidates and where each goes
       summary/     # what the form is: page context + rules outline, and the model prompt + parser
   extension/
-    platform/      # the only files that differ per browser, behind the Platform interface
+    platform/      # the only files that differ per browser, behind the Platform interface (storage, messaging, frames, the built-in model)
     background/    # settings, stored profile and documents, engine clients, scan/fill orchestration
     content/       # thin: collects fields and uploads and applies approved writes via core
     panel/         # fill view, profile editor, documents, settings (sidepanel on Chrome, popup on Firefox)
@@ -91,6 +91,8 @@ Saved answers are then keys: `answer.<id>`, described by their question, matched
   This keeps core testable against static HTML fixtures without a browser.
 - Browser-specific code lives only in `packages/extension/platform/`, behind the `Platform` interface.
   The build aliases `@platform` to the right implementation per target.
+  That includes the browser's built-in model: Chrome's Prompt API (`LanguageModel`, typed in `platform/language-model.d.ts`) is wrapped by `platform/built-in-model.ts` as `Platform.builtInModel`, and Firefox has none.
+  The engine client (`background/engines/built-in.ts`) and the panel's download button reach the model only through that seam.
 - The model maps fields to keys and uploads to document kinds; it never sees a profile value or a document.
   Nothing before `planFill` may carry one, and no prompt may ever include one: not a file, not its name, not the user's description of it.
   The summary prompt carries page text (title, headings, paragraphs, buttons) and field labels, types, sections, and required flags; still never a value, never a field ref.
@@ -102,6 +104,7 @@ Saved answers are then keys: `answer.<id>`, described by their question, matched
   Nothing is stored until the user ticks and saves; the candidate rule (`capture/candidates.ts`) is rules-only, never the model.
 - All inference is local. No code path may send page content, profile data, prompts, or metadata to a remote host.
   Engine endpoints are localhost only; adding a permission or host beyond that needs explicit justification.
+  The browser's built-in model (Gemini Nano on Chrome) runs inside the browser and needs no permission and no endpoint; the one network activity is Chrome's own download of the model, which the extension never starts silently: the panel offers it, the user clicks, and the background uses only a model that is already there.
   `webNavigation` is there only to list the frames of the tab being scanned or filled; the platform returns frame ids and drops the URLs, the same discipline `ActiveTab` keeps, and nothing in the background ever holds a page URL.
 - Zero telemetry. No analytics, no error reporting services, no update pings beyond what browser stores do themselves.
 - Deterministic first, model second. The extension must work fully with no model configured; the model only reduces the "not recognized" list.
@@ -119,7 +122,10 @@ Saved answers are then keys: `answer.<id>`, described by their question, matched
 - Hidden, off-screen, disabled, and read-only fields are never filled.
   The content script supplies the live visibility check, at scan time and again right before each write; core's default is markup-only and stricter environments are always allowed.
 - Nothing is written without review. The panel shows every value before it is filled, and the fill writes only what the user left ticked.
-- Engines implement the `FieldMapper` and `FormSummarizer` contracts defined in core; the extension owns the concrete HTTP clients and constrains their output with the JSON schema core builds.
+- Engines implement the `FieldMapper` and `FormSummarizer` contracts defined in core; the extension owns the concrete clients (two HTTP clients and the built-in model's) and constrains their output with the JSON schema core builds.
+  The built-in model is the default where the browser has one (`defaultSettings` in `lib/settings.ts`), so a fresh install has a model without installing anything; a saved engine choice is never overridden.
+  It needs no model name: `modelSelected` is the one rule for whether a scan may consult a model.
+  Its context is small, so the built-in engine splits a mapping that does not fit and retries a summary without the page text; `QuotaExceededError` is the signal.
   Model output is display-only for the summary and key-only for mapping; nothing a model says is ever written to a page.
 - Manifest changes go in `manifests/base.json` unless genuinely browser-specific.
 

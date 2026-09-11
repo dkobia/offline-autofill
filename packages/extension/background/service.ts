@@ -69,7 +69,7 @@ import type {
   UnmappedField,
 } from "@offline-autofill/shared";
 import type { Platform } from "../platform/types";
-import { normalizeSettings } from "../lib/settings";
+import { defaultSettings, modelSelected, normalizeSettings } from "../lib/settings";
 import { EngineError, type EngineClient } from "./engines";
 import { qualifyRef, splitRef } from "./frame-refs";
 
@@ -104,6 +104,9 @@ export interface BackgroundDeps {
 export function startBackground({ platform, createEngine, summaryTimeoutMs = SUMMARY_TIMEOUT_MS }: BackgroundDeps): void {
   platform.initPanelBehavior();
 
+  /** A fresh install uses the browser's built-in model where there is one; a saved choice is kept as saved. */
+  const defaults = defaultSettings(platform.builtInModel !== undefined);
+
   // Keyed by engine, model, endpoint, and the exact prompt text: the same
   // form on the same model gives the same answer (temperature 0). Lives and
   // dies with the service worker.
@@ -117,11 +120,11 @@ export function startBackground({ platform, createEngine, summaryTimeoutMs = SUM
       case "get-settings":
         return loadSettings().then((settings): GetSettingsResponse => ({ settings }));
       case "save-settings": {
-        const settings = normalizeSettings(request.settings);
+        const settings = normalizeSettings(request.settings, defaults);
         return platform.setSetting(SETTINGS_KEY, settings).then((): GetSettingsResponse => ({ settings }));
       }
       case "probe-engine":
-        return probeEngine(normalizeSettings(request.settings));
+        return probeEngine(normalizeSettings(request.settings, defaults));
       case "get-profile":
         return loadProfile().then((profile): GetProfileResponse => ({ profile }));
       case "save-profile": {
@@ -155,7 +158,7 @@ export function startBackground({ platform, createEngine, summaryTimeoutMs = SUM
   });
 
   async function loadSettings(): Promise<Settings> {
-    return normalizeSettings(await platform.getSetting(SETTINGS_KEY, undefined));
+    return normalizeSettings(await platform.getSetting(SETTINGS_KEY, undefined), defaults);
   }
 
   async function loadProfile(): Promise<Profile> {
@@ -425,7 +428,7 @@ export function startBackground({ platform, createEngine, summaryTimeoutMs = SUM
     const settings = await loadSettings();
     let mapper: EngineClient | undefined;
     let modelError: { code: EngineErrorCode; message: string } | undefined;
-    if (settings.useModel && settings.model) {
+    if (modelSelected(settings)) {
       try {
         mapper = createEngine(settings);
       } catch (error) {
@@ -543,7 +546,7 @@ export function startBackground({ platform, createEngine, summaryTimeoutMs = SUM
     // background checks too, so page text never reaches the model on the
     // word of a stale panel alone.
     const settings = await loadSettings();
-    if (!settings.summary || !settings.useModel || !settings.model) {
+    if (!settings.summary || !modelSelected(settings)) {
       return response;
     }
     const input: SummaryInput = { context, fields: eligible, blocked: outline.blocked };

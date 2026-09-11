@@ -91,5 +91,8 @@ describe("summaries", () => {
     }
     expect(modelErrorText({ code: "origin-forbidden", message: "" })).toContain("blocks this extension");
     expect(modelErrorText({ code: "engine-error", message: "oom" })).toContain("oom");
+    expect(modelErrorText({ code: "model-unavailable", message: "Chrome is still downloading its built-in model" })).toBe(
+      "Chrome is still downloading its built-in model, so only the built-in rules were used.",
+    );
   });
 });

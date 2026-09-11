@@ -22,7 +22,7 @@ import type {
   Settings,
 } from "@offline-autofill/shared";
 import { platform } from "@platform";
-import { DEFAULT_ENDPOINTS, ENGINE_LABELS, isLocalEndpoint, normalizeSettings } from "../lib/settings";
+import { DEFAULT_ENDPOINTS, ENGINE_LABELS, availableEngines, defaultSettings, isLocalEndpoint, isServerEngine, normalizeSettings } from "../lib/settings";
 import {
   CAPTURE_INTRO,
   DIFFERENT_PAGE,
@@ -49,7 +49,7 @@ import {
 import { fillButtonText, fillSummary, modelErrorText, planRows, scanErrorText, scanSummary, skipText } from "./plan-view";
 import { INITIAL_STATE, actionDisabled, begin, canStart, finish, profileClean, profileEdited, type Operation, type PanelState } from "./panel-state";
 import { addEntry, formSections, removeEntry, setValue } from "./profile-form";
-import { describeStatusShort, statusView, type BannerView } from "./status-view";
+import { describeStatusShort, effectiveStatus, statusView, type BannerView, type DownloadState } from "./status-view";
 import { describesPlan, summaryView, type SummaryState } from "./summary-view";
 
 const el = {
@@ -73,6 +73,8 @@ const el = {
   documentsStatus: byId<HTMLParagraphElement>("documents-status"),
   useModelInput: byId<HTMLInputElement>("use-model-input"),
   engineSelect: byId<HTMLSelectElement>("engine-select"),
+  engineHint: byId<HTMLSpanElement>("engine-hint"),
+  serverSettings: byId<HTMLDivElement>("server-settings"),
   endpointInput: byId<HTMLInputElement>("endpoint-input"),
   modelInput: byId<HTMLInputElement>("model-input"),
   modelOptions: byId<HTMLDataListElement>("model-options"),
@@ -83,6 +85,8 @@ const el = {
   settingsStatus: byId<HTMLParagraphElement>("settings-status"),
 };
 
+/** Whether this browser has a built-in model: decides the default engine and whether settings offer it. */
+const hasBuiltIn = platform.builtInModel !== undefined;
 let settings: Settings;
 let status: EngineStatus | null = null;
 let profile: Profile;
@@ -151,16 +155,67 @@ function showView(viewId: string): void {
 
 // ---- Engine status ------------------------------------------------------------------
 
+/** A download the browser is running on its own is watched by asking again now and then. */
+const DOWNLOAD_POLL_MS = 5_000;
+let downloadPoll: ReturnType<typeof setTimeout> | undefined;
+/** The download of the built-in model this panel is running, if any; effectiveStatus says when it shows. */
+let download: DownloadState | null = null;
+/** Counts probes, so a slow answer for earlier settings is dropped, never painted over a newer one. */
+let probeSeq = 0;
+
 async function probe(): Promise<void> {
+  clearTimeout(downloadPoll);
+  if (download && "failed" in download) {
+    // Asking again is how a failed download is dismissed.
+    download = null;
+  }
+  const seq = ++probeSeq;
   status = null;
   renderStatus();
   const response = (await platform.sendMessage({ type: "probe-engine", settings })) as ProbeEngineResponse | undefined;
+  if (seq !== probeSeq) {
+    return;
+  }
   status = response?.status ?? { state: "unreachable" };
   renderStatus();
+  if (status.state === "downloading" && !download) {
+    downloadPoll = setTimeout(() => void probe(), DOWNLOAD_POLL_MS);
+  }
+}
+
+/**
+ * Fetches the browser's built-in model. Chrome starts the download only from
+ * a page the user just interacted with, so it happens here, on the banner's
+ * button, and not in the background; the session it yields is thrown away,
+ * the download is the point. Progress is painted into the status as it comes.
+ */
+async function downloadModel(): Promise<void> {
+  const model = platform.builtInModel;
+  if (!model || (download && "progress" in download)) {
+    return;
+  }
+  clearTimeout(downloadPoll);
+  download = { progress: 0 };
+  renderStatus();
+  try {
+    const session = await model.create({
+      onProgress: (fraction) => {
+        download = { progress: fraction };
+        renderStatus();
+      },
+    });
+    session.destroy();
+  } catch (error) {
+    download = { failed: error instanceof Error ? error.message : String(error) };
+    renderStatus();
+    return;
+  }
+  download = null;
+  await probe();
 }
 
 function renderStatus(): void {
-  const view = statusView(settings, status, platform.name);
+  const view = statusView(settings, effectiveStatus(settings, status, download), platform.name);
   el.statusDot.dataset.state = view.dot;
   el.statusText.textContent = view.label;
   renderBanner(view.banner);
@@ -197,14 +252,24 @@ function renderBanner(banner: BannerView | null): void {
     }
     el.statusBanner.append(ol);
   }
-  if (banner.showRetry) {
+  if (banner.showRetry || banner.showDownload) {
     const actions = document.createElement("div");
     actions.className = "banner-actions";
-    const retry = document.createElement("button");
-    retry.type = "button";
-    retry.textContent = "Check again";
-    retry.addEventListener("click", () => void probe());
-    actions.append(retry);
+    if (banner.showDownload) {
+      const download = document.createElement("button");
+      download.type = "button";
+      download.className = "primary";
+      download.textContent = "Download model";
+      download.addEventListener("click", () => void downloadModel());
+      actions.append(download);
+    }
+    if (banner.showRetry) {
+      const retry = document.createElement("button");
+      retry.type = "button";
+      retry.textContent = "Check again";
+      retry.addEventListener("click", () => void probe());
+      actions.append(retry);
+    }
     el.statusBanner.append(actions);
   }
   el.statusBanner.hidden = false;
@@ -1072,10 +1137,10 @@ async function removeDocument(id: string, fileName: string): Promise<void> {
 
 // ---- Settings view ------------------------------------------------------------------
 
-for (const [kind, label] of Object.entries(ENGINE_LABELS) as [EngineKind, string][]) {
+for (const kind of availableEngines(hasBuiltIn)) {
   const option = document.createElement("option");
   option.value = kind;
-  option.textContent = label;
+  option.textContent = ENGINE_LABELS[kind];
   el.engineSelect.append(option);
 }
 
@@ -1085,20 +1150,32 @@ el.engineSelect.addEventListener("change", () => {
   if (el.endpointInput.value === "" || el.endpointInput.value === previousDefault) {
     el.endpointInput.value = DEFAULT_ENDPOINTS[engine];
   }
+  renderEngineFields(engine);
 });
+
+/** The address and model name belong to a server; the built-in model has a note instead. */
+function renderEngineFields(engine: EngineKind): void {
+  const server = isServerEngine(engine);
+  el.serverSettings.hidden = !server;
+  el.engineHint.hidden = server;
+  el.testConnectionButton.textContent = server ? "Test connection" : "Check model";
+}
 
 el.testConnectionButton.addEventListener("click", () => void testConnection());
 el.saveSettingsButton.addEventListener("click", () => void saveSettings());
 
 function settingsFromForm(): Settings {
-  return normalizeSettings({
-    engine: el.engineSelect.value,
-    endpoint: el.endpointInput.value.trim(),
-    model: el.modelInput.value.trim(),
-    useModel: el.useModelInput.checked,
-    overwrite: el.overwriteInput.checked,
-    summary: el.summaryInput.checked,
-  });
+  return normalizeSettings(
+    {
+      engine: el.engineSelect.value,
+      endpoint: el.endpointInput.value.trim(),
+      model: el.modelInput.value.trim(),
+      useModel: el.useModelInput.checked,
+      overwrite: el.overwriteInput.checked,
+      summary: el.summaryInput.checked,
+    },
+    defaultSettings(hasBuiltIn),
+  );
 }
 
 function renderSettings(): void {
@@ -1108,15 +1185,21 @@ function renderSettings(): void {
   el.modelInput.value = settings.model;
   el.overwriteInput.checked = settings.overwrite;
   el.summaryInput.checked = settings.summary;
+  renderEngineFields(settings.engine);
+}
+
+/** The endpoint matters only for a server engine, and then it must be local. */
+function endpointAcceptable(): boolean {
+  return !isServerEngine(el.engineSelect.value as EngineKind) || isLocalEndpoint(el.endpointInput.value.trim());
 }
 
 async function testConnection(): Promise<void> {
-  if (!isLocalEndpoint(el.endpointInput.value.trim())) {
+  if (!endpointAcceptable()) {
     showStatus(el.settingsStatus, "The endpoint must be on localhost or 127.0.0.1.", "error");
     return;
   }
   const candidate = settingsFromForm();
-  showStatus(el.settingsStatus, "Testing…");
+  showStatus(el.settingsStatus, isServerEngine(candidate.engine) ? "Testing…" : "Checking…");
   const response = (await platform.sendMessage({ type: "probe-engine", settings: candidate })) as ProbeEngineResponse | undefined;
   const result = response?.status ?? { state: "unreachable" as const };
   showStatus(el.settingsStatus, describeStatusShort(result, candidate.engine), result.state === "ok" ? "ok" : "error");
@@ -1131,7 +1214,7 @@ async function testConnection(): Promise<void> {
 }
 
 async function saveSettings(): Promise<void> {
-  if (!isLocalEndpoint(el.endpointInput.value.trim())) {
+  if (!endpointAcceptable()) {
     showStatus(el.settingsStatus, "The endpoint must be on localhost or 127.0.0.1.", "error");
     return;
   }
@@ -1167,7 +1250,7 @@ async function boot(): Promise<void> {
     platform.sendMessage({ type: "list-documents" }),
     platform.getSetting(SUMMARY_OPEN_KEY, true),
   ])) as [GetSettingsResponse | undefined, GetProfileResponse | undefined, ListDocumentsResponse | undefined, unknown];
-  settings = normalizeSettings(settingsResponse?.settings);
+  settings = normalizeSettings(settingsResponse?.settings, defaultSettings(hasBuiltIn));
   profile = normalizeProfile(profileResponse?.profile);
   state = profileClean(state);
   documents = normalizeDocuments(documentsResponse?.documents);

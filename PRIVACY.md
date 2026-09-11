@@ -2,7 +2,7 @@
 
 **Offline Autofill**
 
-Last updated: 3 September 2026
+Last updated: 11 September 2026
 
 ## Summary
 
@@ -24,7 +24,10 @@ Each file may be up to 10 MB; the extension asks for the `unlimitedStorage` perm
 
 Settings (the selected engine, its localhost address, the model name, and the filling options) are stored the same way.
 
-Removing the extension deletes all of it.
+Removing the extension deletes all of it: the profile, the documents, and the settings.
+
+If you use Chrome's built-in model (Gemini Nano), the model itself is Chrome's, not the extension's: Chrome downloads it once, from Google, when you click **Download model** in the extension's status, stores it with the browser, and shares it with every site and extension that uses it.
+The extension never starts that download on its own, and removing the extension does not remove the model; Chrome manages it, and `chrome://on-device-internals` shows it.
 
 ## What the extension accesses
 
@@ -32,7 +35,8 @@ When you click **Scan this page**, the extension reads the structure of the form
 To describe the form, it also reads the page title, headings, paragraph text, button labels, and the labels of file-upload controls.
 This happens on your device.
 
-If you have enabled a local model, the fields the built-in rules could not recognize are described to a local inference server that you run yourself, at an address on `localhost` or `127.0.0.1` that you configure in the extension's settings.
+If you have enabled a model, the fields the built-in rules could not recognize are described to an on-device model: on Chrome, by default, the browser's built-in model, which runs inside Chrome on your device and sends nothing anywhere; or a local inference server that you run yourself, at an address on `localhost` or `127.0.0.1` that you configure in the extension's settings.
+What follows about "the local server" applies to the built-in model in the same way: it receives the same descriptions and nothing more.
 For each such field that description is its label, its `name` or `id` attribute, its type, the heading of its section, and its dropdown options.
 With the form summary switched on (the default), the page title, headings, paragraph text, button labels, and the labels of file-upload controls are sent to that same local server so it can describe the form, together with each fillable field's label, type, section heading, and whether it is required (the first 40 fields; beyond that only a count of the rest).
 A field without a label is named by its ARIA label, placeholder, or the prose beside it, and failing those by its `name` attribute.
@@ -69,6 +73,7 @@ In addition, the address you configure is checked against a list of local hostna
 - **`unlimitedStorage`** lets the stored documents exceed the browser's default 10 MB allowance for extension storage.
 - **`sidePanel`** displays the extension's own interface. It does not read page content.
 - **Access to `localhost` and `127.0.0.1`** lets the extension reach the local inference server you run.
+- Chrome's built-in model needs no permission; the extension uses Chrome's Prompt API, which runs the model inside the browser.
 
 The extension's content script is registered for all sites, because you may ask to fill a form on any page.
 It reads form structure, reads typed values, and writes values only when you ask it to from the panel.
