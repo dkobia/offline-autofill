@@ -109,6 +109,8 @@ export function modelErrorText(error: { code: EngineErrorCode; message: string }
       return "The local model isn’t reachable, so only the built-in rules were used.";
     case "origin-forbidden":
       return "The local model server blocks this extension (see the status above), so only the built-in rules were used.";
+    case "unauthorized":
+      return "The local model server wants an API key, or rejected the one in settings (see the status above), so only the built-in rules were used.";
     case "model-missing":
       return "The selected model isn’t available on the server, so only the built-in rules were used.";
     case "model-unavailable":

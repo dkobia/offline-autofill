@@ -3,7 +3,7 @@
 ## What Offline Autofill is
 
 Offline Autofill is a browser extension that fills web forms from a profile stored only on the user's device: identity, contact details, addresses, education, and employment history, plus documents (resume, cover letter, transcript, photo) it attaches to a form's upload fields.
-Field recognition runs deterministic rules first and consults an on-device model (the browser's built-in model on Chrome, or a local server: Ollama, LM Studio, llama.cpp server, other localhost endpoints) only for fields the rules cannot place.
+Field recognition runs deterministic rules first and consults an on-device model (the browser's built-in model on Chrome, or a local server: oMLX, Ollama, LM Studio, llama.cpp server, other localhost endpoints) only for fields the rules cannot place.
 The model sees field labels, never profile values or documents.
 No profile data, no document, no page content, and no telemetry ever leaves the device.
 
@@ -127,6 +127,8 @@ Saved answers are then keys: `answer.<id>`, described by their question, matched
   It needs no model name: `modelSelected` is the one rule for whether a scan may consult a model.
   Its context is small, so the built-in engine splits a mapping that does not fit and retries a summary without the page text; `QuotaExceededError` is the signal.
   Model output is display-only for the summary and key-only for mapping; nothing a model says is ever written to a page.
+- An API key for an OpenAI-compatible server (oMLX requires one) is a credential: it lives in `Settings.apiKey` in extension-local storage, goes out only as the bearer token to the configured localhost endpoint, never into a prompt, and is never logged or shown unmasked (the client masks it in server error text).
+  `acceptsApiKey` decides which engines take one; normalization drops it for the others, and switching engines in the form clears it.
 - Manifest changes go in `manifests/base.json` unless genuinely browser-specific.
 
 ## Profile

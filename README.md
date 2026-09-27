@@ -10,7 +10,7 @@ Offline Autofill is a zero-telemetry browser extension that fills web forms with
 addresses, education, and work history, and attaches your documents (resume, cover letter, transcript, photo) where a
 form asks for them. Your profile and documents are stored only in your browser. Field recognition uses built-in rules
 first and, for anything they don't recognize, an on-device model: Chrome's built-in Gemini Nano, or a local server you
-already run - Ollama, LM Studio, llama.cpp server, or any OpenAI-compatible localhost endpoint. The model sees the
+already run - [oMLX](https://omlx.ai), [Ollama](https://ollama.com), [LM Studio](https://lmstudio.ai), llama.cpp server, or any OpenAI-compatible localhost endpoint. The model sees the
 form's structure, the page's text, and the questions you have saved, never a value from your profile, never an answer,
 and never a document.
 
@@ -47,7 +47,7 @@ flowchart TD
     page[Page DOM]
     collect["Collect fields and uploads<br/><i>labels, options, visibility</i>"]
     rules["Built-in rules<br/><i>autocomplete, labels, names</i>"]
-    model["On-device model<br/>Chrome built-in · Ollama · LM Studio · llama.cpp<br/><i>sees labels, page text, and saved questions, never profile values, answers, or documents</i>"]
+    model["On-device model<br/>Chrome built-in · oMLX · Ollama · LM Studio · llama.cpp<br/><i>sees labels, page text, and saved questions, never profile values, answers, or documents</i>"]
     plan["Plan<br/><i>profile values matched to fields, documents to uploads</i>"]
     review[Review in panel]
     fill[Fill and attach]
@@ -85,12 +85,23 @@ flow, saved answers, and settings. Not yet done, in rough order:
 | **Chrome built-in**    | Chrome 138 or newer on a desktop that meets Chrome's requirements (see below)   | Gemini Nano                      |
 | **Ollama**             | [Ollama](https://ollama.com) running locally                                    | `llama3.2`, `qwen2.5:7b`, `phi3` |
 | **LM Studio**          | [LM Studio](https://lmstudio.ai) with its local server enabled                  | any loaded chat model            |
-| **llama.cpp**          | `llama-server` on a localhost port                                              | any GGUF chat model              |
+| **oMLX**               | [oMLX](https://omlx.ai) on a Mac with Apple silicon, plus its API key           | any MLX chat model               |
+| **llama.cpp**          | [`llama-server`](https://github.com/ggml-org/llama.cpp) on a localhost port     | any GGUF chat model              |
 
 Chrome's built-in model is the default on Chrome: nothing to install or run. Chrome downloads Gemini Nano once (a few
 GB) when you click **Download model** in the panel's status, and keeps it for every site and extension that uses it.
 It needs about 22 GB of free disk space and either a GPU with more than 4 GB of memory or 16 GB of RAM with 4 cores;
 on a machine below that, the panel says so and you can pick a local server instead. Firefox has no built-in model.
+
+### Choosing a local runtime
+
+If you would rather run a model yourself than use Chrome's built-in one, any of these works; pick the one that fits your machine and habits:
+
+- **[oMLX](https://omlx.ai)** - a Mac app that serves models with Apple's MLX framework, made for Apple silicon.
+  It manages downloading, loading, and unloading models from its own window, and requires an API key.
+- **[Ollama](https://ollama.com)** - a command-line runtime for macOS, Windows, and Linux.
+  `ollama pull` fetches a model and the server runs in the background.
+- **[LM Studio](https://lmstudio.ai)** - a desktop app for macOS, Windows, and Linux to browse, download, and chat with models, with a local server you switch on.
 
 The mapping task is small (a list of labels in, a list of keys out), so Gemini Nano and 3B to 8B models do well. The
 form summary sends the model the page title, headings, intro text, button labels, and field labels - never your
@@ -134,6 +145,9 @@ page is real and nothing entered there is sent anywhere.
    ```
 
    For LM Studio, start the server in the Developer tab; for llama.cpp, run `llama-server -m <model.gguf> --port 8080`.
+   For oMLX, start the server from its window (it listens on `http://127.0.0.1:8000`).
+   oMLX requires an API key: copy it from oMLX's settings, or from `auth.api_key` in `~/.omlx/settings.json`, and paste it under **API key** in **Settings**.
+   The key stays in the extension's local storage and is sent only to the endpoint you configured, never to the model.
    Without a model the extension still works with its built-in rules.
 
 5. On a page with a form, click **Scan this page**, review the values and attachments, and click **Fill**.

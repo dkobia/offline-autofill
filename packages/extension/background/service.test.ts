@@ -185,7 +185,7 @@ const profile = {
   address: [{ line1: "12 St James's Square", city: "London", region: "CA", country: "United Kingdom" }],
 };
 
-const settings: Settings = { engine: "ollama", endpoint: "http://localhost:11434", model: "m", useModel: true, overwrite: false, summary: true };
+const settings: Settings = { engine: "ollama", endpoint: "http://localhost:11434", model: "m", apiKey: "", useModel: true, overwrite: false, summary: true };
 
 const summary: FormSummary = { purpose: "A job application.", howTo: ["Fill in the sections"], notes: [] };
 

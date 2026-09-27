@@ -22,7 +22,7 @@ import type {
   Settings,
 } from "@offline-autofill/shared";
 import { platform } from "@platform";
-import { DEFAULT_ENDPOINTS, ENGINE_LABELS, availableEngines, defaultSettings, isLocalEndpoint, isServerEngine, normalizeSettings } from "../lib/settings";
+import { ENGINE_LABELS, acceptsApiKey, endpointAfterSwitch, availableEngines, defaultSettings, isLocalEndpoint, isServerEngine, normalizeSettings } from "../lib/settings";
 import {
   CAPTURE_INTRO,
   DIFFERENT_PAGE,
@@ -77,6 +77,9 @@ const el = {
   serverSettings: byId<HTMLDivElement>("server-settings"),
   endpointInput: byId<HTMLInputElement>("endpoint-input"),
   modelInput: byId<HTMLInputElement>("model-input"),
+  apiKeyField: byId<HTMLLabelElement>("api-key-field"),
+  apiKeyInput: byId<HTMLInputElement>("api-key-input"),
+  apiKeyHint: byId<HTMLSpanElement>("api-key-hint"),
   modelOptions: byId<HTMLDataListElement>("model-options"),
   overwriteInput: byId<HTMLInputElement>("overwrite-input"),
   summaryInput: byId<HTMLInputElement>("summary-input"),
@@ -1144,20 +1147,28 @@ for (const kind of availableEngines(hasBuiltIn)) {
   el.engineSelect.append(option);
 }
 
+/** The engine the form showed last, so a switch compares against its default, not the saved engine's. */
+let formEngine: EngineKind;
+
 el.engineSelect.addEventListener("change", () => {
   const engine = el.engineSelect.value as EngineKind;
-  const previousDefault = DEFAULT_ENDPOINTS[settings.engine];
-  if (el.endpointInput.value === "" || el.endpointInput.value === previousDefault) {
-    el.endpointInput.value = DEFAULT_ENDPOINTS[engine];
-  }
+  el.endpointInput.value = endpointAfterSwitch(el.endpointInput.value, formEngine, engine);
+  formEngine = engine;
+  // A key belongs to the server it was issued by; never carry it to another.
+  el.apiKeyInput.value = "";
   renderEngineFields(engine);
 });
 
-/** The address and model name belong to a server; the built-in model has a note instead. */
+/** The address, model name, and key belong to a server; the built-in model has a note instead. */
 function renderEngineFields(engine: EngineKind): void {
   const server = isServerEngine(engine);
   el.serverSettings.hidden = !server;
   el.engineHint.hidden = server;
+  el.apiKeyField.hidden = !acceptsApiKey(engine);
+  el.apiKeyHint.textContent =
+    engine === "omlx"
+      ? "oMLX requires one: copy it from oMLX’s settings. Kept on this device and sent only to the endpoint above."
+      : "Only if the server requires one. Kept on this device and sent only to the endpoint above.";
   el.testConnectionButton.textContent = server ? "Test connection" : "Check model";
 }
 
@@ -1170,6 +1181,7 @@ function settingsFromForm(): Settings {
       engine: el.engineSelect.value,
       endpoint: el.endpointInput.value.trim(),
       model: el.modelInput.value.trim(),
+      apiKey: el.apiKeyInput.value.trim(),
       useModel: el.useModelInput.checked,
       overwrite: el.overwriteInput.checked,
       summary: el.summaryInput.checked,
@@ -1181,8 +1193,10 @@ function settingsFromForm(): Settings {
 function renderSettings(): void {
   el.useModelInput.checked = settings.useModel;
   el.engineSelect.value = settings.engine;
+  formEngine = settings.engine;
   el.endpointInput.value = settings.endpoint;
   el.modelInput.value = settings.model;
+  el.apiKeyInput.value = settings.apiKey;
   el.overwriteInput.checked = settings.overwrite;
   el.summaryInput.checked = settings.summary;
   renderEngineFields(settings.engine);

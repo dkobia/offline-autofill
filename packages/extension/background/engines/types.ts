@@ -40,6 +40,9 @@ export const SUMMARY_MAX_TOKENS = 4096;
 
 /** Shared response triage for both HTTP clients. */
 export function statusError(status: number, detail: string): EngineError {
+  if (status === 401) {
+    return new EngineError("unauthorized", detail || "The server requires an API key.");
+  }
   if (status === 403) {
     return new EngineError("origin-forbidden", "The server rejected the extension's origin.");
   }

@@ -923,12 +923,13 @@ textarea {
   min-height: 60px;
 }
 
-/* Endpoints, model ids, and dates are data: render them in mono. */
+/* Endpoints, model ids, keys, and dates are data: render them in mono. */
 input[type="url"],
 input[type="date"],
 input[type="month"],
 #endpoint-input,
-#model-input {
+#model-input,
+#api-key-input {
   font-family: var(--font-mono);
 }
 

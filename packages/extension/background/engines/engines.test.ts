@@ -147,6 +147,73 @@ describe("OpenAiCompatEngine", () => {
     expect(payload.reasoning_effort).toBeUndefined();
   });
 
+  it("sends the API key as a bearer token on probe and chat, and no authorization header without one", async () => {
+    const fetchFn = vi
+      .fn<FetchFn>()
+      .mockResolvedValueOnce(json(200, { data: [] }))
+      .mockResolvedValueOnce(json(200, { choices: [{ message: { content: '{"mappings":[]}' } }] }))
+      .mockResolvedValueOnce(json(200, { data: [] }));
+    const keyed = new OpenAiCompatEngine("omlx", "http://127.0.0.1:8000", "gemma", fetchFn, "local-key");
+    await keyed.probe();
+    await keyed.mapFields(fields);
+    await new OpenAiCompatEngine("llamacpp", "http://localhost:8080", "m", fetchFn).probe();
+    const auth = fetchFn.mock.calls.map((call) => new Headers(call[1]?.headers).get("authorization"));
+    expect(auth).toEqual(["Bearer local-key", "Bearer local-key", null]);
+    expect(new Headers(fetchFn.mock.calls[1]![1]!.headers).get("content-type")).toBe("application/json");
+  });
+
+  it("turns oMLX's thinking off with a zero budget and keeps the json_schema request", async () => {
+    const fetchFn = vi.fn<FetchFn>().mockResolvedValueOnce(json(200, { choices: [{ message: { content: '{"mappings":[]}' } }] }));
+    await new OpenAiCompatEngine("omlx", "http://127.0.0.1:8000", "gemma", fetchFn, "k").mapFields(fields);
+    const payload = JSON.parse(fetchFn.mock.calls[0]![1]!.body as string);
+    expect(payload.thinking_budget).toBe(0);
+    expect(payload.reasoning_effort).toBeUndefined();
+    expect(payload.response_format.type).toBe("json_schema");
+
+    const other = vi.fn<FetchFn>().mockResolvedValueOnce(json(200, { choices: [{ message: { content: '{"mappings":[]}' } }] }));
+    await new OpenAiCompatEngine("lmstudio", "http://localhost:1234", "m", other).mapFields(fields);
+    expect(JSON.parse(other.mock.calls[0]![1]!.body as string).thinking_budget).toBeUndefined();
+  });
+
+  it("maps 401 to unauthorized, on probe and on chat, without retrying the plain request", async () => {
+    const fetchFn = vi
+      .fn<FetchFn>()
+      .mockResolvedValueOnce(json(401, { error: { message: "API key required", type: "authentication_error" } }))
+      .mockResolvedValueOnce(new Response("", { status: 401 }))
+      .mockResolvedValueOnce(json(401, { error: { message: "Invalid API key" } }));
+    const engine = new OpenAiCompatEngine("omlx", "http://127.0.0.1:8000", "gemma", fetchFn);
+    expect(await engine.probe()).toEqual({ state: "unauthorized", detail: "API key required" });
+    expect(await engine.probe()).toEqual({ state: "unauthorized" });
+    await expect(engine.mapFields(fields)).rejects.toMatchObject({ code: "unauthorized", message: "Invalid API key" });
+    expect(fetchFn).toHaveBeenCalledTimes(3);
+  });
+
+  it("masks the API key when the server echoes it in an error", async () => {
+    const echo = (status: number) => json(status, { error: { message: "rejected sk-secret (sk-secret)" } });
+    const fetchFn = vi
+      .fn<FetchFn>()
+      .mockResolvedValueOnce(echo(401))
+      .mockResolvedValueOnce(echo(401))
+      .mockResolvedValueOnce(echo(404))
+      .mockResolvedValueOnce(echo(500))
+      .mockResolvedValueOnce(json(200, { error: "rejected sk-secret" }));
+    const engine = new OpenAiCompatEngine("custom", "http://localhost:8080", "m", fetchFn, "sk-secret");
+    expect(await engine.probe()).toEqual({ state: "unauthorized", detail: "rejected •••• (••••)" });
+    for (const code of ["unauthorized", "model-missing", "engine-error"]) {
+      await expect(engine.mapFields(fields)).rejects.toMatchObject({ code, message: "rejected •••• (••••)" });
+    }
+    await expect(engine.summarizeForm(summaryInput)).rejects.toMatchObject({ code: "engine-error", message: "rejected ••••" });
+  });
+
+  it("never quotes a body that isn't JSON, which could echo the key", async () => {
+    const text = () => new Response("Rejected sk-secret", { status: 200 });
+    const fetchFn = vi.fn<FetchFn>().mockResolvedValueOnce(text()).mockResolvedValueOnce(text());
+    const engine = new OpenAiCompatEngine("omlx", "http://127.0.0.1:8000", "m", fetchFn, "sk-secret");
+    const malformed = "The server sent a response that isn’t valid JSON.";
+    expect(await engine.probe()).toEqual({ state: "error", detail: malformed });
+    await expect(engine.mapFields(fields)).rejects.toMatchObject({ code: "engine-error", message: malformed });
+  });
+
   it("retries without response_format when the server rejects it", async () => {
     const fetchFn = vi
       .fn<FetchFn>()
@@ -163,15 +230,27 @@ describe("OpenAiCompatEngine", () => {
 describe("createEngineClient", () => {
   it("refuses non-local endpoints even if storage was tampered with", () => {
     expect(() =>
-      createEngineClient({ engine: "ollama", endpoint: "https://api.example.com", model: "x", useModel: true, overwrite: false, summary: true }),
+      createEngineClient({ engine: "ollama", endpoint: "https://api.example.com", model: "x", apiKey: "", useModel: true, overwrite: false, summary: true }),
     ).toThrow(EngineError);
   });
 
   it("picks the client by engine kind", () => {
-    const base = { endpoint: "http://localhost:1", model: "m", useModel: true, overwrite: false, summary: true } as const;
+    const base = { endpoint: "http://localhost:1", model: "m", apiKey: "", useModel: true, overwrite: false, summary: true } as const;
     expect(createEngineClient({ ...base, engine: "ollama" })).toBeInstanceOf(OllamaEngine);
     expect(createEngineClient({ ...base, engine: "lmstudio" })).toBeInstanceOf(OpenAiCompatEngine);
     expect(createEngineClient({ ...base, engine: "lmstudio" }).name).toBe("lmstudio");
+    expect(createEngineClient({ ...base, engine: "omlx" })).toBeInstanceOf(OpenAiCompatEngine);
+    expect(createEngineClient({ ...base, engine: "omlx" }).name).toBe("omlx");
+  });
+
+  it("hands the configured API key to the compat client as a bearer token", async () => {
+    const fetchFn = vi.fn<FetchFn>().mockResolvedValueOnce(json(200, { data: [] }));
+    const client = createEngineClient(
+      { engine: "omlx", endpoint: "http://127.0.0.1:8000", model: "m", apiKey: "local-key", useModel: true, overwrite: false, summary: true },
+      { fetchFn },
+    );
+    await client.probe();
+    expect(new Headers(fetchFn.mock.calls[0]![1]!.headers).get("authorization")).toBe("Bearer local-key");
   });
 });
 

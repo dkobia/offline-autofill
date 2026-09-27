@@ -2,7 +2,7 @@ import type { Settings } from "@offline-autofill/shared";
 import { describe, expect, it } from "vitest";
 import { describeStatusShort, effectiveStatus, statusView } from "./status-view";
 
-const settings: Settings = { engine: "ollama", endpoint: "http://localhost:11434", model: "llama3.2", useModel: true, overwrite: false, summary: true };
+const settings: Settings = { engine: "ollama", endpoint: "http://localhost:11434", model: "llama3.2", apiKey: "", useModel: true, overwrite: false, summary: true };
 
 describe("statusView", () => {
   it("is ready when the model is listed", () => {
@@ -47,6 +47,43 @@ describe("statusView", () => {
     const missing = statusView(settings, { state: "ok", models: ["mistral"] }, "chrome");
     expect(missing.label).toBe("Check model");
     expect(JSON.stringify(missing.banner)).toContain("ollama pull llama3.2");
+  });
+});
+
+describe("statusView when the server wants a key", () => {
+  const omlx: Settings = { ...settings, engine: "omlx", endpoint: "http://127.0.0.1:8000", model: "gemma" };
+
+  it("asks for oMLX's key, and where to find it, without blocking the rules", () => {
+    const view = statusView(omlx, { state: "unauthorized", detail: "API key required" }, "chrome");
+    expect(view.dot).toBe("warn");
+    expect(view.label).toBe("Needs key");
+    expect(view.banner?.tone).toBe("warn");
+    expect(view.banner?.title).toBe("oMLX needs an API key");
+    expect(view.banner?.showRetry).toBe(true);
+    const text = JSON.stringify(view.banner);
+    expect(text).toContain("~/.omlx/settings.json");
+    expect(text).toContain("http://127.0.0.1:8000/admin");
+    expect(text).toContain("built-in rules");
+    expect(text).toContain("Details: API key required");
+  });
+
+  it("says the key was rejected when one is set", () => {
+    const view = statusView({ ...omlx, apiKey: "stale" }, { state: "unauthorized" }, "chrome");
+    expect(view.label).toBe("Key rejected");
+    expect(view.banner?.title).toBe("oMLX rejected the API key");
+  });
+
+  it("points other servers at the key they were started with", () => {
+    const view = statusView({ ...settings, engine: "llamacpp", endpoint: "http://localhost:8080" }, { state: "unauthorized" }, "chrome");
+    expect(view.banner?.title).toBe("llama.cpp server needs an API key");
+    expect(JSON.stringify(view.banner)).toContain("--api-key");
+    expect(JSON.stringify(view.banner)).not.toContain("omlx");
+  });
+
+  it("gives oMLX start steps when it is unreachable", () => {
+    const view = statusView(omlx, { state: "unreachable" }, "chrome");
+    expect(view.banner?.title).toBe("oMLX isn’t reachable at http://127.0.0.1:8000");
+    expect(JSON.stringify(view.banner)).toContain("Open oMLX and start the server (default port 8000).");
   });
 });
 
@@ -123,6 +160,7 @@ describe("describeStatusShort", () => {
     expect(describeStatusShort({ state: "ok", models: [] }, "lmstudio")).toBe("LM Studio is running.");
     expect(describeStatusShort({ state: "forbidden" }, "ollama")).toContain("OLLAMA_ORIGINS");
     expect(describeStatusShort({ state: "unreachable" }, "llamacpp")).toContain("isn’t reachable");
+    expect(describeStatusShort({ state: "unauthorized" }, "omlx")).toBe("oMLX is running but needs a valid API key.");
     expect(describeStatusShort({ state: "error", detail: "boom" }, "custom")).toContain("boom");
     expect(describeStatusShort({ state: "ok", models: ["Gemini Nano"] }, "builtin")).toBe("Chrome’s built-in model is ready.");
     expect(describeStatusShort({ state: "downloadable" }, "builtin")).toContain("isn’t downloaded yet");
