@@ -12,6 +12,7 @@ export const ENGINE_LABELS: Record<EngineKind, string> = {
   ollama: "Ollama",
   lmstudio: "LM Studio",
   llamacpp: "llama.cpp server",
+  omlx: "oMLX",
   custom: "Custom (OpenAI-compatible)",
 };
 
@@ -21,6 +22,8 @@ export const DEFAULT_ENDPOINTS: Record<EngineKind, string> = {
   ollama: "http://localhost:11434",
   lmstudio: "http://localhost:1234",
   llamacpp: "http://localhost:8080",
+  // oMLX binds 127.0.0.1 (not ::1) and shows this address in its own UI.
+  omlx: "http://127.0.0.1:8000",
   custom: "http://localhost:8080",
 };
 
@@ -29,6 +32,7 @@ export const DEFAULT_SETTINGS: Settings = {
   engine: "ollama",
   endpoint: DEFAULT_ENDPOINTS.ollama,
   model: "",
+  apiKey: "",
   useModel: true,
   overwrite: false,
   summary: true,
@@ -48,6 +52,24 @@ export function availableEngines(builtIn: boolean): EngineKind[] {
 /** Whether the engine is a local server the user runs, with an endpoint and a model name to pick. */
 export function isServerEngine(engine: EngineKind): boolean {
   return engine !== "builtin";
+}
+
+/**
+ * The endpoint the form shows after switching engines: the new engine's
+ * default when the field still holds the previous engine's default (or
+ * nothing), otherwise the address the user typed.
+ */
+export function endpointAfterSwitch(endpoint: string, from: EngineKind, to: EngineKind): string {
+  return endpoint === "" || endpoint === DEFAULT_ENDPOINTS[from] ? DEFAULT_ENDPOINTS[to] : endpoint;
+}
+
+/**
+ * Whether the engine can take an API key: the OpenAI-compatible servers,
+ * which accept a bearer token (oMLX requires one). Ollama has no auth and the
+ * built-in model no server.
+ */
+export function acceptsApiKey(engine: EngineKind): boolean {
+  return isServerEngine(engine) && engine !== "ollama";
 }
 
 /** Whether a scan may consult a model: the switch is on and there is a model to ask (a server engine needs a name). */
@@ -107,6 +129,8 @@ export function normalizeSettings(raw: unknown, defaults: Settings = DEFAULT_SET
     engine,
     endpoint,
     model: typeof input.model === "string" ? input.model.trim() : "",
+    // Dropped for engines that take none, so it is never sent where it doesn't belong.
+    apiKey: typeof input.apiKey === "string" && acceptsApiKey(engine) ? input.apiKey.trim() : "",
     useModel: input.useModel !== false,
     overwrite: input.overwrite === true,
     summary: input.summary !== false,

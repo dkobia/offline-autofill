@@ -133,6 +133,8 @@ function modelNote(error: { code: EngineErrorCode; message: string }): string {
       return "The local model isn’t reachable, so this is what the built-in rules found.";
     case "origin-forbidden":
       return "The local model server blocks this extension, so this is what the built-in rules found.";
+    case "unauthorized":
+      return "The local model server needs a valid API key, so this is what the built-in rules found.";
     case "model-missing":
       return "The selected model isn’t available on the server, so this is what the built-in rules found.";
     case "model-unavailable":

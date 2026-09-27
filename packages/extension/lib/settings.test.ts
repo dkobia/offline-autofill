@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_SETTINGS, availableEngines, defaultSettings, isLocalEndpoint, isModelAvailable, modelSelected, normalizeSettings } from "./settings";
+import { DEFAULT_SETTINGS, acceptsApiKey, availableEngines, endpointAfterSwitch, defaultSettings, isLocalEndpoint, isModelAvailable, modelSelected, normalizeSettings } from "./settings";
 
 describe("isLocalEndpoint", () => {
   it.each([
@@ -24,8 +24,21 @@ describe("normalizeSettings", () => {
 
   it("keeps valid values and trims trailing slashes", () => {
     expect(
-      normalizeSettings({ engine: "lmstudio", endpoint: "http://localhost:1234/", model: " x ", useModel: false, overwrite: true, summary: false }),
-    ).toEqual({ engine: "lmstudio", endpoint: "http://localhost:1234", model: "x", useModel: false, overwrite: true, summary: false });
+      normalizeSettings({ engine: "lmstudio", endpoint: "http://localhost:1234/", model: " x ", apiKey: "k", useModel: false, overwrite: true, summary: false }),
+    ).toEqual({ engine: "lmstudio", endpoint: "http://localhost:1234", model: "x", apiKey: "k", useModel: false, overwrite: true, summary: false });
+  });
+
+  it("defaults oMLX to the address it listens on", () => {
+    expect(normalizeSettings({ engine: "omlx" }).endpoint).toBe("http://127.0.0.1:8000");
+  });
+
+  it("keeps a trimmed API key only for engines that take one", () => {
+    expect(normalizeSettings({ engine: "omlx", apiKey: "  key  " }).apiKey).toBe("key");
+    expect(normalizeSettings({ engine: "llamacpp", apiKey: "key" }).apiKey).toBe("key");
+    expect(normalizeSettings({ engine: "ollama", apiKey: "key" }).apiKey).toBe("");
+    expect(normalizeSettings({ engine: "builtin", apiKey: "key" }).apiKey).toBe("");
+    expect(normalizeSettings({ engine: "omlx", apiKey: 42 }).apiKey).toBe("");
+    expect(normalizeSettings({ engine: "omlx" }).apiKey).toBe("");
   });
 
   it("replaces a remote endpoint with the engine's local default", () => {
@@ -50,8 +63,31 @@ describe("defaultSettings", () => {
 
 describe("availableEngines", () => {
   it("offers the built-in model first, and only where the browser has one", () => {
-    expect(availableEngines(true)).toEqual(["builtin", "ollama", "lmstudio", "llamacpp", "custom"]);
-    expect(availableEngines(false)).toEqual(["ollama", "lmstudio", "llamacpp", "custom"]);
+    expect(availableEngines(true)).toEqual(["builtin", "ollama", "lmstudio", "llamacpp", "omlx", "custom"]);
+    expect(availableEngines(false)).toEqual(["ollama", "lmstudio", "llamacpp", "omlx", "custom"]);
+  });
+});
+
+describe("endpointAfterSwitch", () => {
+  it("swaps a default endpoint for the new engine's, there and back", () => {
+    const toOllama = endpointAfterSwitch("http://127.0.0.1:8000", "omlx", "ollama");
+    expect(toOllama).toBe("http://localhost:11434");
+    expect(endpointAfterSwitch(toOllama, "ollama", "omlx")).toBe("http://127.0.0.1:8000");
+    expect(endpointAfterSwitch("", "custom", "lmstudio")).toBe("http://localhost:1234");
+  });
+
+  it("keeps an address the user typed", () => {
+    expect(endpointAfterSwitch("http://localhost:9000", "custom", "omlx")).toBe("http://localhost:9000");
+  });
+});
+
+describe("acceptsApiKey", () => {
+  it("is the OpenAI-compatible servers: not Ollama, which has no auth, nor the built-in model", () => {
+    for (const engine of ["omlx", "lmstudio", "llamacpp", "custom"] as const) {
+      expect(acceptsApiKey(engine)).toBe(true);
+    }
+    expect(acceptsApiKey("ollama")).toBe(false);
+    expect(acceptsApiKey("builtin")).toBe(false);
   });
 });
 

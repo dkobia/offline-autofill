@@ -65,6 +65,12 @@ describe("summaryView", () => {
     expect(unavailable.tag).toBe("rules");
     expect(unavailable.note).toBe("Chrome’s built-in model isn’t downloaded yet, so this is what the built-in rules found.");
 
+    const keyless = summaryView({
+      kind: "ready",
+      response: { ok: true, tabId: 1, outline, usedModel: false, modelError: { code: "unauthorized", message: "API key required" } },
+    });
+    expect(keyless.note).toBe("The local model server needs a valid API key, so this is what the built-in rules found.");
+
     const silent = summaryView({ kind: "ready", response: { ok: true, tabId: 1, outline, usedModel: true } });
     expect(silent.note).toBe("The model didn’t return a usable description.");
 
